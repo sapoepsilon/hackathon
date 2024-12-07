@@ -5,29 +5,21 @@ export async function POST(request: Request) {
 
   const targetUrl = body.url
   const method = body.method
-  const data = body.data?.input || body.data // Handle both formats
+  const data = body.data // Keep the original data structure
 
-  // Validate array input if present
-  if (Array.isArray(data)) {
-    const isArrayOfNumbers = data.every(item => typeof item === 'number')
-    const isArrayOfStrings = data.every(item => typeof item === 'string')
-    
-    if (!isArrayOfNumbers && !isArrayOfStrings) {
-      return NextResponse.json({ 
-        error: "Array must contain only numbers or only strings" 
-      }, { status: 400 })
-    }
-  }
+  // Debug log with full object structure
+  console.log('Proxy request:', JSON.stringify({ targetUrl, method, data }, null, 2))
 
-  console.log('Proxy request:', { targetUrl, method, data })
   try {
     const response = await fetch(targetUrl, {
       method: method || 'GET',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: method && !['GET', 'HEAD'].includes(method) && data ? JSON.stringify(data) : undefined
+      body: method && !['GET', 'HEAD'].includes(method) ? JSON.stringify(data) : undefined
     })
+
+    console.log(`Proxy response: ${response.status} ${response.statusText}`)
 
     const contentType = response.headers.get('content-type')
     let responseData

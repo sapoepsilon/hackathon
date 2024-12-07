@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { Deployment } from "@/types/deployment";
 import { supabase } from "@/lib/supabase";
 import { dockerContainer } from "@/types/dockerContainer";
@@ -45,6 +45,7 @@ export default function FlowCanvas({
     setNodes,
     setEdges,
   } = useFlow([], []);
+
   const { theme, systemTheme } = useTheme();
   const [containers, setContainers] = useState<Deployment[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -376,6 +377,58 @@ export default function FlowCanvas({
     return result;
   };
 
+  const handleAddCombinerNode = () => {
+    const newNode = {
+      id: `combiner-${Date.now()}`,
+      type: 'combiner',
+      position: { x: 300, y: 200 },
+      data: { 
+        combined: null,
+        outputType: 'json',
+        inputs: [
+          { id: 'input1', type: 'json' },
+          { id: 'input2', type: 'json' }
+        ],
+        inputValues: {}
+      },
+    };
+    setNodes((nds) => [...nds, newNode]);
+  };
+
+  const CombinerNode = ({ data }: { data: any }) => {
+    return (
+      <div className="px-4 py-2 shadow-md rounded-md bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700">
+        <div className="font-bold">JSON Combiner</div>
+        <Handle 
+          type="target" 
+          position={Position.Left} 
+          id="input1" 
+          style={{ top: '40%' }}
+        />
+        <Handle 
+          type="target" 
+          position={Position.Left} 
+          id="input2" 
+          style={{ top: '60%' }}
+        />
+        <div className="text-sm mt-2 max-w-[200px] overflow-hidden text-ellipsis">
+          {data.combined ? (
+            <pre className="whitespace-pre-wrap">
+              {JSON.stringify(data.combined, null, 2)}
+            </pre>
+          ) : (
+            'Connect two inputs'
+          )}
+        </div>
+        <Handle 
+          type="source" 
+          position={Position.Right} 
+          id="output"
+        />
+      </div>
+    );
+  };
+
   const nodeTypes = useMemo(
     () => ({
       api: ({ data }: { data: any }) => (
@@ -450,9 +503,82 @@ export default function FlowCanvas({
     [executeApiNode, isExecuting]
   );
 
+  useEffect(() => {
+    const handleConnect = (params: Connection) => {
+      const sourceNode = nodes.find(n => n.id === params.source);
+      const targetNode = nodes.find(n => n.id === params.target);
+      
+      // Get the source and target types
+      const sourceType = sourceNode?.data?.outputType || 'json';
+      const targetType = params.targetHandle === 'input1' || params.targetHandle === 'input2' ? 'json' : targetNode?.data?.inputType;
+      
+      // Only allow connection if types match
+      if (sourceType === targetType) {
+        setEdges((eds) => addEdge(params, eds));
+      }
+    };
+
+    // Override the onConnect function
+    onConnect.current = handleConnect;
+  }, [nodes, setEdges]);
+
+  useEffect(() => {
+    const updateCombinerNodes = () => {
+      let hasUpdates = false;
+      const newNodes = nodes.map((node) => {
+        if (node.type !== 'combiner') return node;
+
+        const input1Edge = edges.find((e) => e.target === node.id && e.targetHandle === 'input1');
+        const input2Edge = edges.find((e) => e.target === node.id && e.targetHandle === 'input2');
+        
+        if (!input1Edge || !input2Edge) return node;
+
+        const sourceNode1 = nodes.find((n) => n.id === input1Edge.source);
+        const sourceNode2 = nodes.find((n) => n.id === input2Edge.source);
+        
+        const value1 = sourceNode1?.data?.output;
+        const value2 = sourceNode2?.data?.output;
+        
+        if (value1 === undefined || value2 === undefined) return node;
+        
+        // Only update if values have changed
+        const newCombined = {
+          input1: value1,
+          input2: value2
+        };
+        
+        if (JSON.stringify(node.data.combined) === JSON.stringify(newCombined)) {
+          return node;
+        }
+        
+        hasUpdates = true;
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            combined: newCombined,
+            output: newCombined
+          }
+        };
+      });
+
+      if (hasUpdates) {
+        setNodes(newNodes);
+      }
+    };
+
+    updateCombinerNodes();
+  }, [edges, nodes, setNodes]);
+
+  const handleEdgesUpdate = useCallback((oldEdge: Edge, newConnection: Connection) => {
+    setEdges((els) => updateEdge(oldEdge, newConnection, els));
+  }, []);
+
+  nodeTypes.combiner = CombinerNode;
+
   return (
-    <div style={{ width, height }} className="relative rounded-lg border border-border">
-      <div className="absolute top-4 right-4 z-10">
+    <div className="relative" style={{ height, width }}>
+      <div className="absolute top-4 right-4 z-10 flex gap-2">
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button size="sm">
@@ -477,6 +603,9 @@ export default function FlowCanvas({
             </div>
           </DialogContent>
         </Dialog>
+        <Button onClick={handleAddCombinerNode}>
+          Add Combiner
+        </Button>
       </div>
 
       <ReactFlow
@@ -485,6 +614,7 @@ export default function FlowCanvas({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onEdgesUpdate={handleEdgesUpdate}
         nodeTypes={nodeTypes}
         onNodeClick={handleNodeClick}
         fitView
