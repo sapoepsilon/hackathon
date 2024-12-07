@@ -206,39 +206,149 @@ export const ApiNode = ({ id, data, isExecuting, onExecute }: ApiNodeProps) => {
   );
 };
 
-interface CombinerNodeProps {
-  data: any;
+interface CombinerNodeData {
+  input1?: any;
+  input2?: any;
+  combined?: any;
+  selectedFields?: Array<{ field: string; valueOnly: boolean }>;
 }
 
-export const CombinerNode = ({ data }: CombinerNodeProps) => (
-  <div className="px-4 py-2 shadow-md rounded-md bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700">
-    <div className="font-bold">JSON Combiner</div>
-    <Handle
-      type="target"
-      position={Position.Left}
-      id="input1"
-      style={{ top: "40%" }}
-    />
-    <Handle
-      type="target"
-      position={Position.Left}
-      id="input2"
-      style={{ top: "60%" }}
-    />
-    <div className="text-sm mt-2 max-w-[200px] overflow-hidden text-ellipsis">
-      {data.combined ? (
-        <pre className="whitespace-pre-wrap">
-          {JSON.stringify(data.combined, null, 2)}
-        </pre>
-      ) : (
-        "Connect two inputs"
-      )}
+interface CombinerNodeProps {
+  data: CombinerNodeData;
+}
+
+export const CombinerNode = ({ data }: CombinerNodeProps) => {
+  const filterOutput = (output: any) => {
+    if (!output || !data.selectedFields?.length) return output;
+
+    if (Array.isArray(output)) {
+      return output.map((item) => {
+        if (data.selectedFields?.every((f) => f.valueOnly)) {
+          return data.selectedFields.map((f) => item[f.field]);
+        }
+        const filtered: any = {};
+        data.selectedFields?.forEach(({ field, valueOnly }) => {
+          if (field in item) {
+            if (valueOnly) {
+              return item[field];
+            }
+            filtered[field] = item[field];
+          }
+        });
+        return filtered;
+      });
+    } else if (typeof output === "object") {
+      if (data.selectedFields?.every((f) => f.valueOnly)) {
+        return data.selectedFields.map((f) => output[f.field]);
+      }
+      const filtered: any = {};
+      data.selectedFields?.forEach(({ field, valueOnly }) => {
+        if (field in output) {
+          if (valueOnly && data.selectedFields?.length === 1) {
+            return output[field];
+          }
+          filtered[field] = output[field];
+        }
+      });
+      return filtered;
+    }
+    return output;
+  };
+
+  return (
+    <div className="px-4 py-2 shadow-md rounded-md bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700">
+      <div className="font-bold">JSON Combiner</div>
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="input1"
+        style={{ top: "40%" }}
+      />
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="input2"
+        style={{ top: "60%" }}
+      />
+      <div className="space-y-2">
+        {/* Field selector */}
+        {data.combined && (
+          <div className="text-xs space-y-1">
+            <div className="font-medium text-foreground/70">Select fields:</div>
+            <div className="max-h-[100px] overflow-y-auto bg-muted/30 rounded-md p-2">
+              {Object.keys(
+                Array.isArray(data.combined)
+                  ? data.combined[0] || {}
+                  : data.combined || {}
+              ).map((field) => {
+                const fieldConfig = data.selectedFields?.find(
+                  (f) => f.field === field
+                );
+                return (
+                  <div
+                    key={field}
+                    className="flex items-center gap-2 hover:bg-muted/20 p-1 rounded"
+                  >
+                    <label className="flex items-center gap-2 flex-1">
+                      <input
+                        type="checkbox"
+                        className="rounded"
+                        checked={!!fieldConfig}
+                        onChange={(e) => {
+                          const newFields = e.target.checked
+                            ? [
+                                ...(data.selectedFields || []),
+                                { field, valueOnly: false },
+                              ]
+                            : (data.selectedFields || []).filter(
+                                (f) => f.field !== field
+                              );
+                          data.selectedFields = newFields;
+                        }}
+                      />
+                      <span>{field}</span>
+                    </label>
+                    {fieldConfig && (
+                      <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          className="rounded scale-75"
+                          checked={fieldConfig.valueOnly}
+                          onChange={(e) => {
+                            const newFields = (data.selectedFields || []).map(
+                              (f) =>
+                                f.field === field
+                                  ? { ...f, valueOnly: e.target.checked }
+                                  : f
+                            );
+                            data.selectedFields = newFields;
+                          }}
+                        />
+                        value only
+                      </label>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Output preview */}
+        <div className="text-xs space-y-1">
+          <pre className="bg-muted/30 p-2 rounded-md overflow-x-auto max-h-[100px] text-[10px]">
+            {data.combined
+              ? JSON.stringify(filterOutput(data.combined), null, 2)
+              : "Connect both inputs"}
+          </pre>
+        </div>
+      </div>
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="output"
+        data-type="json"
+      />
     </div>
-    <Handle
-      type="source"
-      position={Position.Right}
-      id="output"
-      data-type="json"
-    />
-  </div>
-);
+  );
+};
