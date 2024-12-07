@@ -1,19 +1,23 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Editor from '@monaco-editor/react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { DockerContainersTable } from '../components/DockerContainersTable';
-import { DockerContainer } from '@/types/docker';
-import { useToast } from '@/hooks/use-toast';
-import ignoredContainers from './api/containers/ignored-containers.json';
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { DockerContainersTable } from "../components/DockerContainersTable";
+import { DockerContainer } from "@/types/docker";
+import { useToast } from "@/hooks/use-toast";
+import { DeploymentToast } from "@/components/DeploymentToast";
+import ignoredContainers from "./api/containers/ignored-containers.json";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
+import { CodeEditor } from "@/components/CodeEditor";
 
 export default function Home() {
   const { toast } = useToast();
-  const [deploymentStatus, setDeploymentStatus] = useState('idle');
-  const [containerLogs, setContainerLogs] = useState('');
-  const [deployedUrl, setDeployedUrl] = useState('');
+  const [deploymentStatus, setDeploymentStatus] = useState("idle");
   const [code, setCode] = useState(`// Write your Node.js code here
 const http = require('http');
 
@@ -27,21 +31,20 @@ server.listen(3000, () => {
 });`);
   const [containers, setContainers] = useState<DockerContainer[]>([]);
   const nonIgnoredContainers = containers.filter(
-    container => !ignoredContainers.ignoredContainers.includes(container.ID)
+    (container) => !ignoredContainers.ignoredContainers.includes(container.ID)
   );
 
   const handleDeploy = async () => {
     try {
-      setDeploymentStatus('deploying');
-      setContainerLogs('Building and deploying container...');
+      setDeploymentStatus("deploying");
       toast({
-        description: 'Building and deploying container...',
+        description: "Building and deploying container...",
       });
 
-      const response = await fetch('/api/deploy', {
-        method: 'POST',
+      const response = await fetch("/api/deploy", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ code }),
       });
@@ -49,37 +52,21 @@ server.listen(3000, () => {
       const data = await response.json();
 
       if (data.success) {
-        setDeploymentStatus('deployed');
-        setContainerLogs(`Container ${data.containerId} running successfully`);
-        setDeployedUrl(data.url);
+        setDeploymentStatus("deployed");
         toast({
-          description: (
-            <div className="space-y-2">
-              <p>Container {data.containerId} running successfully</p>
-              <p>
-                Your application is deployed at:{" "}
-                <a 
-                  href={data.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="text-blue-500 hover:underline"
-                >
-                  {data.url}
-                </a>
-              </p>
-            </div>
-          ),
+          title: "Deployment Successful",
+          description: `Container ${data.containerId} deployed successfully at ${data.url}`,
           variant: "default",
         });
       } else {
         throw new Error(data.error);
       }
-    } catch (error: any) {
-      setDeploymentStatus('error');
-      setContainerLogs(`Deployment failed: ${error.message ?? 'no error message provided'}`);
+    } catch (error) {
+      setDeploymentStatus("error");
       toast({
         title: "Deployment Failed",
-        description: error.message ?? 'no error message provided',
+        description:
+          error instanceof Error ? error.message : "no error message provided",
         variant: "destructive",
       });
     }
@@ -88,13 +75,13 @@ server.listen(3000, () => {
   useEffect(() => {
     const fetchContainers = async () => {
       try {
-        const response = await fetch('/api/containers');
+        const response = await fetch("/api/containers");
         const data = await response.json();
         if (data.success) {
           setContainers(data.containers);
         }
       } catch (error) {
-        console.error('Failed to fetch containers:', error);
+        console.error("Failed to fetch containers:", error);
       }
     };
 
@@ -105,35 +92,39 @@ server.listen(3000, () => {
   }, []);
 
   return (
-    <main className="container mx-auto p-4 space-y-4">
-      <Card>
-        <CardContent className="p-4">
-          <Editor
-            height="75vh"
-            defaultLanguage="javascript"
-            theme="vs-dark"
-            value={code}
-            onChange={(value) => setCode(value || '')}
-            options={{
-              minimap: { enabled: false },
-              fontSize: 14,
-            }}
-          />
-        </CardContent>
-      </Card>
-
+    <div className="h-screen p-4">
+      <ResizablePanelGroup direction="horizontal">
+        <ResizablePanel defaultSize={75}>
+          <div className="h-full p-2">
+            <CodeEditor code={code} onChange={setCode} />
+          </div>
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={25}>
+          <div className="h-full p-2">
+            <Card>
+              <CardContent className="p-4">
+                <DockerContainersTable containers={nonIgnoredContainers} />
+              </CardContent>
+            </Card>
+          </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
+      {deploymentStatus === "error" && (
+        <DeploymentToast
+          title="Deployment Failed"
+          message="Failed to deploy container"
+          type="destructive"
+        />
+      )}
       <div className="flex justify-between items-center">
-        <Button 
+        <Button
           onClick={handleDeploy}
-          disabled={deploymentStatus === 'deploying'}
+          disabled={deploymentStatus === "deploying"}
         >
-          {deploymentStatus === 'deploying' ? 'Deploying...' : 'Deploy'}
+          {deploymentStatus === "deploying" ? "Deploying..." : "Deploy"}
         </Button>
       </div>
-
-      {nonIgnoredContainers.length > 0 && (
-        <DockerContainersTable containers={nonIgnoredContainers} />
-      )}
-    </main>
+    </div>
   );
 }

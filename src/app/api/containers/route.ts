@@ -48,7 +48,9 @@ export async function POST(
   request: NextRequest
 ): Promise<NextResponse> {
   try {
-    const { truncatedId } = await request.json();
+    const body = await request.json();
+    const { truncatedId, containerId } = body;
+    
     if (truncatedId) {
       // Get full container ID using docker inspect
       const { stdout } = await execAsync(`docker ps -a --no-trunc --filter "id=${truncatedId}" --format "{{.ID}}"`);
@@ -65,11 +67,17 @@ export async function POST(
     }
     
     // Existing port mapping logic
-    const { containerId } = await request.json();
+    if (!containerId) {
+      return NextResponse.json(
+        { success: false, error: 'Container ID is required' },
+        { status: 400 }
+      );
+    }
+    
     const { stdout } = await execAsync(`docker port ${containerId}`);
     const ports = stdout.trim().split('\n');
     const mappings = ports.map(port => {
-      const [internal, external] = port.split(' -> ');
+      const [, external] = port.split(' -> ');
       const externalPort = external.split(':')[1];
       return `http://localhost:${externalPort}`;
     });

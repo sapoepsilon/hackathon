@@ -39,29 +39,26 @@ export function DockerContainersTable({ containers, onContainerDeleted }: Docker
       
       if (supabaseError) throw new Error(supabaseError.message);
 
-      // Then delete the actual container
-      console.log(`Making API call to delete container: ${containerId}`);
-      const response = await fetch('/api/containers', {
+      // Delete from Docker
+      const response = await fetch(`/api/containers`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ containerId }),
       });
-      
-      const responseData = await response.json();
-      console.log('API delete response:', responseData);
 
-      if (!responseData.success) {
-        throw new Error(responseData.error || 'Failed to delete container');
+      if (!response.ok) {
+        throw new Error('Failed to delete container');
       }
 
       toast({
-        title: "Success",
         description: "Container deleted successfully",
       });
-      
-      // mutate('/api/containers'); // This line was commented out because mutate is not defined in this scope
+
+      if (onContainerDeleted) {
+        onContainerDeleted();
+      }
     } catch (error) {
       console.error('Error in deleteContainer:', error);
       toast({
@@ -111,21 +108,6 @@ export function DockerContainersTable({ containers, onContainerDeleted }: Docker
     } finally {
       setLoading(null);
     }
-  };
-
-  const getFullContainerId = async (truncatedId: string) => {
-    const response = await fetch('/api/containers', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ truncatedId }),
-    });
-    
-    const data = await response.json();
-    if (!data.success) throw new Error(data.error);
-    
-    return data.fullId;
   };
 
   return (

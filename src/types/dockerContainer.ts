@@ -67,26 +67,26 @@ export type dockerContainer = {
       NanoCpus: number;
       CgroupParent: string;
       BlkioWeight: number;
-      BlkioWeightDevice: any[];
-      BlkioDeviceReadBps: any[];
-      BlkioDeviceWriteBps: any[];
-      BlkioDeviceReadIOps: any[];
-      BlkioDeviceWriteIOps: any[];
+      BlkioWeightDevice: BlkioWeightDevice[];
+      BlkioDeviceReadBps: BlkioDeviceRate[];
+      BlkioDeviceWriteBps: BlkioDeviceRate[];
+      BlkioDeviceReadIOps: BlkioDeviceRate[];
+      BlkioDeviceWriteIOps: BlkioDeviceRate[];
       CpuPeriod: number;
       CpuQuota: number;
       CpuRealtimePeriod: number;
       CpuRealtimeRuntime: number;
       CpusetCpus: string;
       CpusetMems: string;
-      Devices: any[];
+      Devices: DeviceConfig[];
       DeviceCgroupRules: null | string[];
-      DeviceRequests: null | any[];
+      DeviceRequests: null | DeviceRequest[];
       MemoryReservation: number;
       MemorySwap: number;
       MemorySwappiness: null | number;
       OomKillDisable: null | boolean;
       PidsLimit: null | number;
-      Ulimits: any[];
+      Ulimits: Ulimit[];
       CpuCount: number;
       CpuPercent: number;
       IOMaximumIOps: number;
@@ -98,7 +98,7 @@ export type dockerContainer = {
       Data: object;
       Name: string;
     };
-    Mounts: any[];
+    Mounts: unknown[];
     Config: {
       Hostname: string;
       Domainname: string;
@@ -140,3 +140,33 @@ export type dockerContainer = {
       Networks: object;
     };
   };
+
+interface DeviceConfig {
+  PathOnHost: string;
+  PathInContainer: string;
+  CgroupPermissions: string;
+}
+
+interface BlkioWeightDevice {
+  Path: string;
+  Weight: number;
+}
+
+interface BlkioDeviceRate {
+  Path: string;
+  Rate: number;
+}
+
+interface DeviceRequest {
+  Driver: string;
+  Count: number;
+  DeviceIDs: string[];
+  Capabilities: string[][];
+  Options: Record<string, string>;
+}
+
+interface Ulimit {
+  Name: string;
+  Soft: number;
+  Hard: number;
+}

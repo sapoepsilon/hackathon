@@ -71,11 +71,11 @@ CMD ["node", "index.js"]`);
       containerId: containerFullId,
       url,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Deployment error:', error);
     return NextResponse.json({
       success: false,
-      error: error.message || 'Failed to deploy container',
+      error: error || 'Failed to deploy container',
     }, { status: 500 });
   }
 }
