@@ -1,4 +1,4 @@
-import { ReactFlow, Background, Controls, Node } from "@xyflow/react";
+import { ReactFlow, Background, Controls, Node, addEdge } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "@/styles/flow.css";
 import { useFlow } from "../hooks/useFlow";
@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Deployment } from "@/types/deployment";
 import { supabase } from "@/lib/supabase";
 import { dockerContainer } from "@/types/dockerContainer";
@@ -42,6 +42,8 @@ export default function FlowCanvas({
     onConnect,
     addNode,
     updateNode,
+    setNodes,
+    setEdges,
   } = useFlow([], []);
   const { theme, systemTheme } = useTheme();
   const [containers, setContainers] = useState<Deployment[]>([]);
@@ -51,7 +53,6 @@ export default function FlowCanvas({
   const [inputType, setInputType] = useState<
     "string" | "number" | "json" | "array-number" | "array-string"
   >("string");
-  const [apiOutput, setApiOutput] = useState<string | null>(null);
   const [isApiDialogOpen, setIsApiDialogOpen] = useState(false);
 
   const currentTheme = theme === "system" ? systemTheme : theme;
@@ -112,8 +113,6 @@ export default function FlowCanvas({
   const handleApiCall = async () => {
     if (!selectedNode?.data.deploymentUrl) return;
 
-    console.log("Calling API:", selectedNode.data);
-
     try {
       const response = await fetch("/api/proxy", {
         method: "POST",
@@ -159,18 +158,60 @@ export default function FlowCanvas({
       });
 
       const data = await response.json();
-      setApiOutput(JSON.stringify(data, null, 2));
+      
+      // Create a response node
+      const responseNode: Node = {
+        id: `response-${Date.now()}`,
+        type: 'response',
+        position: {
+          x: selectedNode.position.x + 200,
+          y: selectedNode.position.y,
+        },
+        data: {
+          label: 'Response',
+          output: data,
+          outputType: typeof data === "object" ? "json" : typeof data,
+        },
+      };
 
-      // Update the node data with the output using updateNode
-      updateNode(selectedNode.id, {
-        output: data,
-        outputType: typeof data === "object" ? "json" : typeof data,
-      });
+      // Add response node
+      setNodes((nds) => [...nds, responseNode]);
+
+      // Connect API node to response node
+      setEdges((eds) => [
+        ...eds,
+        {
+          id: `${selectedNode.id}-${responseNode.id}`,
+          source: selectedNode.id,
+          target: responseNode.id,
+        },
+      ]);
+
+      // Close the dialog
+      setIsApiDialogOpen(false);
+      setApiInput("");
     } catch (error) {
       console.error("Error calling API:", error);
-      setApiOutput("Error calling API: " + error);
     }
   };
+
+  const nodeTypes = useMemo(
+    () => ({
+      response: ({ data }: { data: any }) => (
+        <div className="px-4 py-2 shadow-lg rounded-md bg-background border border-border">
+          <div className="font-bold text-sm">{data.label}</div>
+          {data.output && (
+            <div className="mt-2 text-xs max-w-[200px] max-h-[100px] overflow-auto">
+              <pre className="bg-secondary/50 p-2 rounded">
+                {JSON.stringify(data.output, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
+      ),
+    }),
+    []
+  );
 
   return (
     <div
@@ -207,8 +248,22 @@ export default function FlowCanvas({
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
+        onConnect={(params) => {
+          const sourceNode = nodes.find((n) => n.id === params.source);
+          const targetNode = nodes.find((n) => n.id === params.target);
+
+          if (sourceNode && targetNode) {
+            // Add the connection
+            setEdges((eds) => addEdge(params, eds));
+
+            // If the target node is an API node, trigger the API call with the source node's output
+            if (targetNode.data.type === "api" && sourceNode.data.output) {
+              handleApiCall();
+            }
+          }
+        }}
         onNodeClick={handleNodeClick}
+        nodeTypes={nodeTypes}
         fitView
         proOptions={{ hideAttribution: true }}
         colorMode={currentTheme === "dark" ? "dark" : "light"}
@@ -276,14 +331,6 @@ export default function FlowCanvas({
               />
             </div>
             <Button onClick={handleApiCall}>Call API</Button>
-            {apiOutput && (
-              <div className="grid gap-2">
-                <label>Output</label>
-                <pre className="bg-secondary p-4 rounded-lg overflow-auto max-h-[200px]">
-                  {apiOutput}
-                </pre>
-              </div>
-            )}
           </div>
         </DialogContent>
       </Dialog>

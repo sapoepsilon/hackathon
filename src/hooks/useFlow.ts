@@ -12,7 +12,7 @@ import {
 
 interface NodeData {
   label: string;
-  type?: 'api';
+  type?: 'api' | 'response';
   deploymentUrl?: string;
   containerId?: string;
   method?: string;
@@ -40,20 +40,75 @@ export function useFlow(defaultNodes: Node[], defaultEdges: Edge[]) {
   );
 
   const onConnect = useCallback(
-    (params: Connection) => {
+    async (params: Connection) => {
       // Get source and target nodes
       const sourceNode = nodes.find(node => node.id === params.source);
       const targetNode = nodes.find(node => node.id === params.target);
       
-      // Check if the output type matches the input type
-      if (sourceNode?.data.outputType && targetNode?.data.inputType &&
-          sourceNode.data.outputType === targetNode.data.inputType) {
+      if (sourceNode && targetNode) {
+        // Add the connection
         setEdges((eds) => addEdge(params, eds));
-      } else {
-        console.warn('Connection invalid: input/output types do not match');
+
+        // If the target is an API node and source has output, trigger API call
+        if (targetNode.data.type === 'api' && sourceNode.data.output) {
+          try {
+            const response = await fetch("/api/proxy", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                url: targetNode.data.deploymentUrl,
+                method: targetNode.data.method,
+                data: { input: sourceNode.data.output },
+              }),
+            });
+
+            const data = await response.json();
+            
+            // Update the API node with the output
+            setNodes(nds => 
+              nds.map(node => 
+                node.id === targetNode.id 
+                  ? { ...node, data: { ...node.data, output: data, outputType: typeof data === "object" ? "json" : typeof data } }
+                  : node
+              )
+            );
+
+            // Create a response node
+            const responseNode: Node = {
+              id: `response-${Date.now()}`,
+              type: 'response',
+              position: {
+                x: targetNode.position.x + 200,
+                y: targetNode.position.y,
+              },
+              data: {
+                label: 'Response',
+                output: data,
+                outputType: typeof data === "object" ? "json" : typeof data,
+              },
+            };
+
+            // Add response node
+            setNodes(nds => [...nds, responseNode]);
+
+            // Connect API node to response node
+            setEdges(eds => [
+              ...eds,
+              {
+                id: `${targetNode.id}-${responseNode.id}`,
+                source: targetNode.id,
+                target: responseNode.id,
+              },
+            ]);
+          } catch (error) {
+            console.error("Error calling API:", error);
+          }
+        }
       }
     },
-    [nodes]
+    [nodes, setNodes, setEdges]
   );
 
   const addNode = useCallback(async (nodeData?: Partial<NodeData>) => {
