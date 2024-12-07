@@ -4,7 +4,6 @@ import "@xyflow/react/dist/style.css";
 import "@/styles/flow.css";
 import { useFlow } from "../hooks/useFlow";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
 
 const initialNodes: Node[] = [
   {

@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { DataType, InputConfig } from "@/components/ui/deploy-dialog";
 
 export function useDeployment() {
   const { toast } = useToast();
   const [deploymentStatus, setDeploymentStatus] = useState("idle");
   const [containerDetails, setContainerDetails] = useState<{ containerId: string; url: string } | null>(null);
 
-  const handleDeploy = async (code: string) => {
+  const handleDeploy = async (code: string, inputs: InputConfig[], outputs: DataType) => {
     try {
       setDeploymentStatus("deploying");
       toast({
@@ -18,7 +19,7 @@ export function useDeployment() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, inputs, outputs }),
       });
 
       const data = await response.json();

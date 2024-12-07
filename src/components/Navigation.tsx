@@ -8,13 +8,23 @@ import {
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
 import { SheetTrigger } from "@/components/ui/sheet";
+import {
+  DataType,
+  DeployDialog,
+  InputConfig,
+} from "@/components/ui/deploy-dialog";
 
 interface NavigationProps {
   deploymentStatus: string;
-  onDeploy: () => void;
+  code: string;
+  onDeploy: (inputs: InputConfig[], output: DataType) => Promise<void>;
 }
 
-export function Navigation({ deploymentStatus, onDeploy }: NavigationProps) {
+export function Navigation({
+  deploymentStatus,
+  code,
+  onDeploy,
+}: NavigationProps) {
   return (
     <NavigationMenu className="p-2">
       <NavigationMenuList>
@@ -38,13 +48,18 @@ export function Navigation({ deploymentStatus, onDeploy }: NavigationProps) {
             Deploy
           </NavigationMenuTrigger>
           <NavigationMenuContent className="p-2">
-            <Button
-              variant="ghost"
-              className="w-full justify-start"
-              onClick={onDeploy}
-            >
-              {deploymentStatus === "deploying" ? "Deploying..." : "Deploy"}
-            </Button>
+            <DeployDialog
+              onDeploy={onDeploy}
+              trigger={
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  disabled={deploymentStatus === "deploying"}
+                >
+                  {deploymentStatus === "deploying" ? "Deploying..." : "Deploy"}
+                </Button>
+              }
+            />
           </NavigationMenuContent>
         </NavigationMenuItem>
       </NavigationMenuList>

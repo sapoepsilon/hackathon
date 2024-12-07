@@ -1,6 +1,6 @@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CodeEditor } from "@/components/CodeEditor";
-import FlowCanvas from "@/components/FlowCanvas";
+import FlowCanvas from "./FlowCanvas";
 
 interface EditorTabsProps {
   code: string;
@@ -21,7 +21,7 @@ export function EditorTabs({ code, onCodeChange }: EditorTabsProps) {
       </TabsContent>
       <TabsContent value="flow">
         <div className="container mx-auto py-10">
-          <FlowCanvas height="75vh" />
+          <FlowCanvas height="75vh" width="100%" />
         </div>
       </TabsContent>
     </Tabs>

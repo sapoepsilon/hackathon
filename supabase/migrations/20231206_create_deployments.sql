@@ -4,6 +4,8 @@ create table if not exists public.deployments (
     container_id text not null,
     code text not null,
     url text not null,
+    inputs JSONB DEFAULT '[]',
+    outputs JSONB DEFAULT '[]',
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
     updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );

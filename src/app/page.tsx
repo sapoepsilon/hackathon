@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { DockerContainersTable } from "../components/DockerContainersTable";
 import { DeploymentToast } from "@/components/DeploymentToast";
@@ -14,7 +14,7 @@ import { Navigation } from "@/components/Navigation";
 import { EditorTabs } from "@/components/EditorTabs";
 import { useDeployment } from "@/hooks/useDeployment";
 import { useContainers } from "@/hooks/useContainers";
-import { ContainerCompletionDialog } from "@/components/ContainerCompletionDialog";
+import { DataType, InputConfig } from "@/components/ui/deploy-dialog";
 
 export default function Home() {
   const [code, setCode] = useState(`// Write your Node.js code here
@@ -28,29 +28,23 @@ const server = http.createServer((req, res) => {
 server.listen(3000, () => {
   console.log('Server running on port 3000');
 });`);
-
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [completedPort, setCompletedPort] = useState<string>("");
-
-  const { deploymentStatus, handleDeploy, containerDetails } = useDeployment();
+  const { deploymentStatus, handleDeploy } = useDeployment();
   const { containers } = useContainers();
 
-  useEffect(() => {
-    if (deploymentStatus === "deployed" && containerDetails) {
-      console.log(containerDetails.containerId);
-      // Extract port from URL (e.g., http://localhost:3000 -> 3000)
-      const port = containerDetails.url.split(":")[2];
-      setCompletedPort(port);
-      setDialogOpen(true);
-    }
-  }, [deploymentStatus, containerDetails]);
+  const handleDeployWithConfig = async (
+    input: InputConfig[],
+    output: DataType
+  ) => {
+    await handleDeploy(code, input, output);
+  };
 
   return (
     <div className="h-screen">
       <Sheet>
         <Navigation
           deploymentStatus={deploymentStatus}
-          onDeploy={() => handleDeploy(code)}
+          code={code}
+          onDeploy={handleDeployWithConfig}
         />
         <EditorTabs code={code} onCodeChange={setCode} />
 
@@ -74,12 +68,6 @@ server.listen(3000, () => {
           type="destructive"
         />
       )}
-      <ContainerCompletionDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        containerId={containerDetails?.containerId || ""}
-        port={completedPort}
-      />
     </div>
   );
 }

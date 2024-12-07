@@ -16,9 +16,11 @@ function getRandomPort(min = 3000, max = 9000) {
 
 export async function POST(request: Request) {
   try {
-    const { code } = await request.json();
+    const { code, inputs, outputs } = await request.json();
     const containerId = randomBytes(4).toString('hex');
     const port = getRandomPort();
+
+    console.log(`inputs: ${JSON.stringify(inputs)} outputs: ${JSON.stringify(outputs)}`);
     
     // Create a temporary directory for the container
     const containerDir = join(process.cwd(), 'tmp', containerId);
@@ -27,7 +29,7 @@ export async function POST(request: Request) {
     // Write the code to a file
     await writeFile(join(containerDir, 'index.js'), code);
     
-    // Create Dockerfile
+    // Create Dockerfile (without input/output config as it's not needed for deployment)
     await writeFile(join(containerDir, 'Dockerfile'), `FROM node:18-alpine
 WORKDIR /app
 COPY index.js .
@@ -40,20 +42,22 @@ CMD ["node", "index.js"]`);
     
     // Get the full container ID
     const actualContainerId = containerIdOutput.trim();
-
     const url = `http://localhost:${port}`;
 
     console.log('Container ID:', actualContainerId);
 
-    // USING bash get the container information
+    // Get container information
     const { stdout } = await execAsync(`docker inspect ${actualContainerId}`);
     const containerInfo: dockerContainer = JSON.parse(stdout)[0];
 
-    // Save deployment information to Supabase
+    // Save deployment information to Supabase with inputs and output
     const deployment: Deployment = {
       container_id: containerInfo.Config.Hostname,
       code,
       url,
+      inputs: inputs || [], // Store inputs array if provided, empty array if not
+      outputs: outputs || '', // Store output if provided, empty string if not
+      created_at: new Date().toISOString(),
     };
 
     const { error: supabaseError } = await supabase
@@ -69,6 +73,8 @@ CMD ["node", "index.js"]`);
       success: true,
       containerId: containerInfo.Config.Hostname,
       url,
+      inputs,
+      outputs
     });
   } catch (error) {
     console.error('Deployment error:', error);
