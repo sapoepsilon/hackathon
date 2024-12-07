@@ -8,16 +8,6 @@ create table if not exists public.deployments (
     updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- Enable Row Level Security (RLS)
-alter table public.deployments enable row level security;
-
--- Create policies
-create policy "Enable read access for all users" on public.deployments
-    for select using (true);
-
-create policy "Enable insert access for all users" on public.deployments
-    for insert with check (true);
-
 -- Create updated_at trigger
 create or replace function public.handle_updated_at()
 returns trigger as $$

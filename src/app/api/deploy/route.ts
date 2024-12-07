@@ -42,7 +42,6 @@ CMD ["node", "index.js"]`);
     const actualContainerId = containerIdOutput.trim();
 
     const url = `http://localhost:${port}`;
-    const containerFullId = `container-${containerId}`;
 
     console.log('Container ID:', actualContainerId);
 
@@ -68,7 +67,7 @@ CMD ["node", "index.js"]`);
 
     return NextResponse.json({
       success: true,
-      containerId: containerFullId,
+      containerId: actualContainerId,
       url,
     });
   } catch (error) {

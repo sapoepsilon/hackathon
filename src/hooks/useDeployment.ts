@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 export function useDeployment() {
   const { toast } = useToast();
   const [deploymentStatus, setDeploymentStatus] = useState("idle");
+  const [containerDetails, setContainerDetails] = useState<{ containerId: string; url: string } | null>(null);
 
   const handleDeploy = async (code: string) => {
     try {
@@ -24,6 +25,10 @@ export function useDeployment() {
 
       if (data.success) {
         setDeploymentStatus("deployed");
+        setContainerDetails({
+          containerId: data.containerId,
+          url: data.url
+        });
         toast({
           title: "Deployment Successful",
           description: `Container ${data.containerId} deployed successfully at ${data.url}`,
@@ -46,5 +51,6 @@ export function useDeployment() {
   return {
     deploymentStatus,
     handleDeploy,
+    containerDetails,
   };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { DockerContainersTable } from "../components/DockerContainersTable";
 import { DeploymentToast } from "@/components/DeploymentToast";
@@ -14,6 +14,7 @@ import { Navigation } from "@/components/Navigation";
 import { EditorTabs } from "@/components/EditorTabs";
 import { useDeployment } from "@/hooks/useDeployment";
 import { useContainers } from "@/hooks/useContainers";
+import { ContainerCompletionDialog } from "@/components/ContainerCompletionDialog";
 
 export default function Home() {
   const [code, setCode] = useState(`// Write your Node.js code here
@@ -28,19 +29,33 @@ server.listen(3000, () => {
   console.log('Server running on port 3000');
 });`);
 
-  const { deploymentStatus, handleDeploy } = useDeployment();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [completedContainerId, setCompletedContainerId] = useState<string>("");
+  const [completedPort, setCompletedPort] = useState<string>("");
+
+  const { deploymentStatus, handleDeploy, containerDetails } = useDeployment();
   const { containers } = useContainers();
+
+  useEffect(() => {
+    if (deploymentStatus === "deployed" && containerDetails) {
+      setCompletedContainerId(containerDetails.containerId);
+      // Extract port from URL (e.g., http://localhost:3000 -> 3000)
+      const port = containerDetails.url.split(":")[2];
+      setCompletedPort(port);
+      setDialogOpen(true);
+    }
+  }, [deploymentStatus, containerDetails]);
 
   return (
     <div className="h-screen">
       <Sheet>
-        <Navigation 
-          deploymentStatus={deploymentStatus} 
-          onDeploy={() => handleDeploy(code)} 
+        <Navigation
+          deploymentStatus={deploymentStatus}
+          onDeploy={() => handleDeploy(code)}
         />
         <EditorTabs code={code} onCodeChange={setCode} />
 
-        <SheetContent style={{ maxWidth: "50vw" }}>
+        <SheetContent style={{ maxWidth: "60vw" }}>
           <SheetHeader>
             <SheetTitle>Docker Containers</SheetTitle>
           </SheetHeader>
@@ -60,6 +75,12 @@ server.listen(3000, () => {
           type="destructive"
         />
       )}
+      <ContainerCompletionDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        containerId={completedContainerId}
+        port={completedPort}
+      />
     </div>
   );
 }
