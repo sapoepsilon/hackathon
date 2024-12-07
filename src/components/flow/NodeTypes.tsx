@@ -344,6 +344,7 @@ interface JSONInputNodeData {
   jsonInput?: any;
   inputJson?: any;
   selectedFields?: Array<{ field: string; valueOnly: boolean }>;
+  output?: any;
 }
 
 interface JSONInputNodeProps {
@@ -354,16 +355,29 @@ export const JSONInputNode = ({ data }: JSONInputNodeProps) => {
   const [jsonText, setJsonText] = useState("");
   const [error, setError] = useState("");
   const [manualInput, setManualInput] = useState(true);
+  const [outputData, setOutputData] = useState<any>(null);
 
   const handleJsonInput = (value: string) => {
     try {
       const parsed = JSON.parse(value);
       setJsonText(value);
       data.jsonInput = parsed;
+      updateOutputData(parsed);
       setError("");
       setManualInput(true);
     } catch (e) {
       setError("Invalid JSON");
+    }
+  };
+
+  const updateOutputData = (input: any) => {
+    if (data.selectedFields?.[0]?.field) {
+      const selectedValue = getValueByPath(input, data.selectedFields[0].field);
+      setOutputData(selectedValue);
+      data.output = selectedValue;
+    } else {
+      setOutputData(input);
+      data.output = input;
     }
   };
 
@@ -372,12 +386,19 @@ export const JSONInputNode = ({ data }: JSONInputNodeProps) => {
       try {
         const formattedJson = JSON.stringify(data.jsonInput, null, 2);
         setJsonText(formattedJson);
+        updateOutputData(data.jsonInput);
         setError("");
       } catch (e) {
         setError("Invalid JSON from input");
       }
     }
   }, [data.jsonInput, manualInput]);
+
+  useEffect(() => {
+    if (data.jsonInput) {
+      updateOutputData(data.jsonInput);
+    }
+  }, [data.selectedFields]);
 
   return (
     <div className="px-4 py-2 shadow-md rounded-md bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700">
@@ -422,6 +443,7 @@ export const JSONInputNode = ({ data }: JSONInputNodeProps) => {
                         checked={isSelected}
                         onChange={() => {
                           data.selectedFields = [{ field, valueOnly: false }];
+                          updateOutputData(data.jsonInput);
                         }}
                       />
                       <span className="flex-1">{field}</span>
@@ -441,6 +463,9 @@ export const JSONInputNode = ({ data }: JSONInputNodeProps) => {
         position={Position.Right}
         id="output"
         data-type="json"
+        data={data.selectedFields?.[0]?.field ? { 
+          [data.selectedFields[0].field]: getValueByPath(data.jsonInput, data.selectedFields[0].field) 
+        } : data.jsonInput}
       />
     </div>
   );
