@@ -1,10 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { DockerContainersTable } from './components/DockerContainersTable';
+
+interface DockerContainer {
+  ID: string;
+  Names: string[];
+  Image: string;
+  State: string;
+  Status: string;
+}
 
 export default function Home() {
   const [deploymentStatus, setDeploymentStatus] = useState('idle');
@@ -21,6 +30,7 @@ const server = http.createServer((req, res) => {
 server.listen(3000, () => {
   console.log('Server running on port 3000');
 });`);
+  const [containers, setContainers] = useState<DockerContainer[]>([]);
 
   const handleDeploy = async () => {
     try {
@@ -50,6 +60,25 @@ server.listen(3000, () => {
     }
   };
 
+  useEffect(() => {
+    const fetchContainers = async () => {
+      try {
+        const response = await fetch('/api/containers');
+        const data = await response.json();
+        if (data.success) {
+          setContainers(data.containers);
+        }
+      } catch (error) {
+        console.error('Failed to fetch containers:', error);
+      }
+    };
+
+    fetchContainers();
+    // Refresh container list every 5 seconds
+    const interval = setInterval(fetchContainers, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <main className="container mx-auto p-4 space-y-4">
       <Card>
@@ -77,9 +106,9 @@ server.listen(3000, () => {
         </Button>
 
         {deployedUrl && (
-          <Alert>
+          <Alert className="mt-4">
             <AlertDescription>
-              Your application is running at: <a href={deployedUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{deployedUrl}</a>
+              Your application is deployed at: <a href={deployedUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{deployedUrl}</a>
             </AlertDescription>
           </Alert>
         )}
@@ -92,6 +121,8 @@ server.listen(3000, () => {
           </CardContent>
         </Card>
       )}
+
+      <DockerContainersTable containers={containers} />
     </main>
   );
 }
