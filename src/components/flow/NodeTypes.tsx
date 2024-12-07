@@ -4,6 +4,7 @@ import { Copy, Check, Search } from "lucide-react";
 import { useState } from "react";
 import { Input } from "../ui/input";
 import { ApiDialog } from "./DialogComponents";
+import { useFlowContext } from "./FlowProvider";
 
 interface ApiNodeData {
   id: string;
@@ -22,26 +23,21 @@ interface ApiNodeData {
 interface ApiNodeProps {
   id: string;
   data: ApiNodeData;
-  isExecuting: boolean;
-  onExecute: (id: string) => void;
 }
 
-export const ApiNode = ({ id, data, isExecuting, onExecute }: ApiNodeProps) => {
-  console.log("ApiNode props:", { id, data, isExecuting }); // Debug log
-
+export const ApiNode = ({ id, data }: ApiNodeProps) => {
+  const { executeApiNode, isExecuting } = useFlowContext();
   const [isApiDialogOpen, setIsApiDialogOpen] = useState(false);
   const [inputType, setInputType] = useState("");
   const [apiInput, setApiInput] = useState("");
 
   const handleApiCall = () => {
-    // Handle API call logic here
     setIsApiDialogOpen(false);
   };
 
   const handleExecute = (e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log("Execute clicked for node:", id); // Debug log
-    onExecute(id);
+    executeApiNode(id);
   };
 
   const getNestedFields = (obj: any, prefix = ""): string[] => {

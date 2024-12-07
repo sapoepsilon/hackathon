@@ -14,6 +14,12 @@ interface FlowCanvasProps {
   width?: string;
 }
 
+// Define nodeTypes outside of any component
+const nodeTypes = {
+  api: (props: any) => <ApiNode {...props} />,
+  combiner: CombinerNode,
+};
+
 function FlowCanvasContent({
   height = "75vh",
   width = "100%",
@@ -107,33 +113,6 @@ function FlowCanvasContent({
       console.error("Error calling API:", error);
     }
   };
-
-  const nodeTypes = useMemo(
-    () => ({
-      api: (props: any) => {
-        console.log("API node props:", props); // Debug log
-        return (
-          <ApiNode
-            {...props}
-            isExecuting={isExecuting}
-            onExecute={(id: string) => {
-              console.log("Execute called with id:", id); // Debug log
-              const node = nodes.find((n) => n.id === id);
-              if (!node) {
-                console.error("Node not found:", id);
-                return;
-              }
-
-              // Execute the API call
-              executeApiNode(id);
-            }}
-          />
-        );
-      },
-      combiner: CombinerNode,
-    }),
-    [isExecuting, nodes, executeApiNode]
-  );
 
   const getJsonPaths = (obj: any, parentPath = ""): string[] => {
     if (!obj || typeof obj !== "object") return [];
