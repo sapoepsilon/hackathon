@@ -394,8 +394,8 @@ export const JSONInputNode = ({ data }: JSONInputNodeProps) => {
   }, [data.selectedFields]);
 
   return (
-    <div className="px-4 py-2 shadow-md rounded-md bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700">
-      <div className="font-bold">JSON Filter</div>
+    <div className="relative p-4 shadow-lg rounded-lg bg-background border border-border">
+      <div className="font-bold text-sm">JSON Filter</div>
       <Handle
         type="target"
         position={Position.Left}
@@ -593,21 +593,23 @@ export const GroupNode = ({ data }: GroupNodeProps) => {
   };
 
   return (
-    <div className="group-node p-4 rounded-lg bg-secondary border-2 border-primary min-w-[200px]">
+    <div className="relative p-4 shadow-lg rounded-lg bg-background border border-border min-w-[320px]">
       <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleExpand}
-            className="h-6 w-6"
-          >
-            {data.isExpanded ? "-" : "+"}
-          </Button>
-          <span className="font-semibold text-lg">{data.label}</span>
-          <span className="text-xs text-muted-foreground">
-            ({data.childNodes.length} nodes)
-          </span>
+        <div className="flex items-center justify-between gap-4 relative z-10">
+          <div className="font-bold text-sm truncate">{data.label}</div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={toggleExpand}
+              className="shrink-0"
+            >
+              {data.isExpanded ? "-" : "+"}
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              ({data.childNodes.length} nodes)
+            </span>
+          </div>
         </div>
 
         <div className="flex flex-col gap-2 text-sm">
@@ -620,7 +622,7 @@ export const GroupNode = ({ data }: GroupNodeProps) => {
                 {externalConnections.inputs.map((input, i) => (
                   <span
                     key={i}
-                    className="px-2 py-1 bg-primary/10 rounded-md text-xs"
+                    className="px-2 py-1 bg-muted rounded-md text-xs"
                   >
                     {input}
                   </span>
@@ -638,7 +640,7 @@ export const GroupNode = ({ data }: GroupNodeProps) => {
                 {externalConnections.outputs.map((output, i) => (
                   <span
                     key={i}
-                    className="px-2 py-1 bg-primary/10 rounded-md text-xs"
+                    className="px-2 py-1 bg-muted rounded-md text-xs"
                   >
                     {output}
                   </span>
@@ -648,8 +650,18 @@ export const GroupNode = ({ data }: GroupNodeProps) => {
           )}
         </div>
       </div>
-      <Handle type="target" position={Position.Top} />
-      <Handle type="source" position={Position.Bottom} />
+      <Handle
+        type="target"
+        position={Position.Top}
+        className="!w-3 !h-3"
+        style={{ background: "var(--border)" }}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="!w-3 !h-3"
+        style={{ background: "var(--border)" }}
+      />
     </div>
   );
 };
