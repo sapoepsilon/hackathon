@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { supabase } from "@/lib/supabase";
 import { Deployment } from "@/types/deployment";
 import { dockerContainer } from "@/types/dockerContainer";
+import { topologicalSort } from "@/lib/utils";
 
 interface FlowContextType {
   nodes: Node[];
