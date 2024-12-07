@@ -12,6 +12,7 @@ import { DeploymentInput, DeploymentOutput } from "@/types/deployment-config";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "./ui/select";
 import { SelectValue } from "@radix-ui/react-select";
 import { Plus, Trash2 } from "lucide-react";
+import { createDeploymentConfig } from "@/app/actions/deployment-config";
 
 interface ContainerCompletionDialogProps {
   open: boolean;
@@ -79,13 +80,24 @@ export function ContainerCompletionDialog({
   };
 
   const handleSubmit = async () => {
-    console.log("Uploading to Supabase:", {
-      containerId,
-      externalPort: port,
-      inputs,
-      outputs,
-    });
-    onOpenChange(false);
+    try {
+      const result = await createDeploymentConfig(
+        containerId,
+        // port,
+        inputs,
+        outputs
+      );
+
+      if (!result.success) {
+        console.error("Failed to upload config:", result.error);
+        // You might want to show an error toast here
+      }
+
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error uploading config:", error);
+      // You might want to show an error toast here
+    }
   };
 
   return (

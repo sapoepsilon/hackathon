@@ -11,9 +11,10 @@ $$ LANGUAGE plpgsql;
 CREATE TABLE deployment_configs (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   deployment_id UUID NOT NULL REFERENCES deployments(id) ON DELETE CASCADE,
-  inputs JSONB NOT NULL DEFAULT '[]',
-  outputs JSONB NOT NULL DEFAULT '[]',
-  node_coordinates JSONB NOT NULL,
+  container_id TEXT NOT NULL,
+  inputs JSONB DEFAULT '[]',
+  outputs JSONB DEFAULT '[]',
+  node_coordinates JSONB DEFAULT '[]',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );

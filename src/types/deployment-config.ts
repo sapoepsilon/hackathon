@@ -20,6 +20,7 @@ export interface NodeCoordinates {
 export interface DeploymentConfig {
   id?: string;
   deployment_id: string;
+  container_id: string;
   inputs: DeploymentInput[];
   outputs: DeploymentOutput[];
   node_coordinates: NodeCoordinates;

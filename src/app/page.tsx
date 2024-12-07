@@ -30,7 +30,6 @@ server.listen(3000, () => {
 });`);
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [completedContainerId, setCompletedContainerId] = useState<string>("");
   const [completedPort, setCompletedPort] = useState<string>("");
 
   const { deploymentStatus, handleDeploy, containerDetails } = useDeployment();
@@ -38,7 +37,7 @@ server.listen(3000, () => {
 
   useEffect(() => {
     if (deploymentStatus === "deployed" && containerDetails) {
-      setCompletedContainerId(containerDetails.containerId);
+      console.log(containerDetails.containerId);
       // Extract port from URL (e.g., http://localhost:3000 -> 3000)
       const port = containerDetails.url.split(":")[2];
       setCompletedPort(port);
@@ -78,7 +77,7 @@ server.listen(3000, () => {
       <ContainerCompletionDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        containerId={completedContainerId}
+        containerId={containerDetails?.containerId || ""}
         port={completedPort}
       />
     </div>

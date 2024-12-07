@@ -67,7 +67,7 @@ CMD ["node", "index.js"]`);
 
     return NextResponse.json({
       success: true,
-      containerId: actualContainerId,
+      containerId: containerInfo.Config.Hostname,
       url,
     });
   } catch (error) {
