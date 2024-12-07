@@ -8,12 +8,25 @@ import { DockerContainer } from "@/types/docker";
 import { useToast } from "@/hooks/use-toast";
 import { DeploymentToast } from "@/components/DeploymentToast";
 import ignoredContainers from "./api/containers/ignored-containers.json";
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable";
+
 import { CodeEditor } from "@/components/CodeEditor";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+} from "@/components/ui/navigation-menu";
+import { IconDocker } from "@/components/icons";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import FlowCanvas from "@/components/FlowCanvas";
 
 export default function Home() {
   const { toast } = useToast();
@@ -92,24 +105,57 @@ server.listen(3000, () => {
   }, []);
 
   return (
-    <div className="h-screen p-4">
-      <ResizablePanelGroup direction="horizontal">
-        <ResizablePanel defaultSize={75}>
-          <div className="h-full p-2">
-            <CodeEditor code={code} onChange={setCode} />
-          </div>
-        </ResizablePanel>
-        <ResizableHandle withHandle />
-        <ResizablePanel defaultSize={25}>
-          <div className="h-full p-2">
+    <div className="h-screen">
+      <Sheet>
+        <NavigationMenu className="p-4">
+          <NavigationMenuList>
+            <NavigationMenuItem>
+              <NavigationMenuTrigger className="bg-background hover:bg-accent">
+                Menu
+              </NavigationMenuTrigger>
+              <NavigationMenuContent className="p-2">
+                <SheetTrigger asChild>
+                  <Button variant="ghost" className="w-full justify-start">
+                    <div className="flex items-center gap-2">
+                      <IconDocker className="h-4 w-4" />
+                      View Containers
+                    </div>
+                  </Button>
+                </SheetTrigger>
+              </NavigationMenuContent>
+            </NavigationMenuItem>
+          </NavigationMenuList>
+        </NavigationMenu>
+        <Tabs defaultValue="code" className="w-200px">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="code">Code Editor</TabsTrigger>
+            <TabsTrigger value="flow">Flow Canvas</TabsTrigger>
+          </TabsList>
+          <TabsContent value="code">
+            <div>
+              <CodeEditor code={code} onChange={setCode} />
+            </div>
+          </TabsContent>
+          <TabsContent value="flow">
+            <div className="container mx-auto py-10">
+              <FlowCanvas height="75vh" />
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        <SheetContent style={{ maxWidth: "50vw" }}>
+          <SheetHeader>
+            <SheetTitle>Docker Containers</SheetTitle>
+          </SheetHeader>
+          <div className="h-full mt-4">
             <Card>
               <CardContent className="p-4">
                 <DockerContainersTable containers={nonIgnoredContainers} />
               </CardContent>
             </Card>
           </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
+        </SheetContent>
+      </Sheet>
       {deploymentStatus === "error" && (
         <DeploymentToast
           title="Deployment Failed"
