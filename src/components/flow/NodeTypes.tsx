@@ -123,7 +123,7 @@ export const ApiNode = ({ id, data }: ApiNodeProps) => {
             onClick={() => setIsApiDialogOpen(true)}
             className="shrink-0"
           >
-            API
+            Input
           </Button>
           <Button
             size="sm"
@@ -332,7 +332,7 @@ export const JSONInputNode = ({ data }: JSONInputNodeProps) => {
   // Update node data when string mode changes
   useEffect(() => {
     data.isStringMode = isStringMode;
-    data.outputType = isStringMode ? 'string' : 'json';
+    data.outputType = isStringMode ? "string" : "json";
   }, [isStringMode, data]);
 
   const handleJsonInput = (value: string) => {
@@ -473,7 +473,9 @@ export const JSONInputNode = ({ data }: JSONInputNodeProps) => {
         data-type={isStringMode ? "string" : "json"}
         data={
           isStringMode
-            ? typeof outputData === 'string' ? outputData : JSON.stringify(outputData)
+            ? typeof outputData === "string"
+              ? outputData
+              : JSON.stringify(outputData)
             : data.selectedFields?.[0]?.field
             ? {
                 [data.selectedFields[0].field]: getValueByPath(
@@ -484,6 +486,133 @@ export const JSONInputNode = ({ data }: JSONInputNodeProps) => {
             : data.jsonInput
         }
       />
+    </div>
+  );
+};
+
+interface GroupNodeData {
+  label: string;
+  isExpanded: boolean;
+  childNodes: string[]; // IDs of the nodes in the group
+}
+
+interface GroupNodeProps {
+  data: GroupNodeData;
+}
+
+export const GroupNode = ({ data }: GroupNodeProps) => {
+  const { nodes, edges, setNodes } = useFlowContext();
+
+  // Get all connections to and from the group's child nodes
+  const groupConnections = edges.filter(
+    (edge) =>
+      data.childNodes.includes(edge.source) ||
+      data.childNodes.includes(edge.target)
+  );
+
+  // Get external nodes that connect to this group
+  const externalConnections = {
+    inputs: [
+      ...new Set(
+        groupConnections
+          .filter((edge) => !data.childNodes.includes(edge.source))
+          .map((edge) => {
+            const sourceNode = nodes.find((n) => n.id === edge.source);
+            return sourceNode?.data?.label || sourceNode?.id;
+          })
+      ),
+    ],
+    outputs: [
+      ...new Set(
+        groupConnections
+          .filter((edge) => !data.childNodes.includes(edge.target))
+          .map((edge) => {
+            const targetNode = nodes.find((n) => n.id === edge.target);
+            return targetNode?.data?.label || targetNode?.id;
+          })
+      ),
+    ],
+  };
+
+  const toggleExpand = () => {
+    // Toggle visibility of child nodes
+    setNodes((prevNodes) =>
+      prevNodes.map((node) => ({
+        ...node,
+        hidden: data.childNodes.includes(node.id)
+          ? data.isExpanded
+          : node.hidden,
+      }))
+    );
+
+    // Update the group node's expanded state
+    setNodes((prevNodes) =>
+      prevNodes.map((node) =>
+        node.type === "group"
+          ? { ...node, data: { ...node.data, isExpanded: !data.isExpanded } }
+          : node
+      )
+    );
+  };
+
+  return (
+    <div className="group-node p-4 rounded-lg bg-secondary border-2 border-primary min-w-[200px]">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleExpand}
+            className="h-6 w-6"
+          >
+            {data.isExpanded ? "-" : "+"}
+          </Button>
+          <span className="font-semibold text-lg">{data.label}</span>
+          <span className="text-xs text-muted-foreground">
+            ({data.childNodes.length} nodes)
+          </span>
+        </div>
+
+        <div className="flex flex-col gap-2 text-sm">
+          {externalConnections.inputs.length > 0 && (
+            <div className="flex flex-col">
+              <span className="text-xs font-medium text-muted-foreground">
+                Inputs from:
+              </span>
+              <div className="flex flex-wrap gap-1">
+                {externalConnections.inputs.map((input, i) => (
+                  <span
+                    key={i}
+                    className="px-2 py-1 bg-primary/10 rounded-md text-xs"
+                  >
+                    {input}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {externalConnections.outputs.length > 0 && (
+            <div className="flex flex-col">
+              <span className="text-xs font-medium text-muted-foreground">
+                Outputs to:
+              </span>
+              <div className="flex flex-wrap gap-1">
+                {externalConnections.outputs.map((output, i) => (
+                  <span
+                    key={i}
+                    className="px-2 py-1 bg-primary/10 rounded-md text-xs"
+                  >
+                    {output}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      <Handle type="target" position={Position.Top} />
+      <Handle type="source" position={Position.Bottom} />
     </div>
   );
 };

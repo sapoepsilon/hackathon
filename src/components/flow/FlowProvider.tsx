@@ -20,6 +20,7 @@ interface FlowContextType {
   addCombinerNode: () => void;
   addJsonNode: () => void;
   updateCombinerNodes: () => void;
+  createGroupFromSelection: (label: string) => void;
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
 }
@@ -327,6 +328,42 @@ export const FlowProvider = ({ children }: FlowProviderProps) => {
     }
   };
 
+  const createGroupFromSelection = (label: string) => {
+    // Get selected nodes
+    const selectedNodes = nodes.filter((node) => node.selected);
+    if (selectedNodes.length < 2) return; // Need at least 2 nodes to group
+
+    const nodeIds = selectedNodes.map((node) => node.id);
+    
+    // Calculate group position (average of selected nodes)
+    const avgPosition = {
+      x: selectedNodes.reduce((sum, node) => sum + node.position.x, 0) / selectedNodes.length,
+      y: selectedNodes.reduce((sum, node) => sum + node.position.y, 0) / selectedNodes.length,
+    };
+
+    // Create group node
+    const groupNode: Node = {
+      id: `group-${Date.now()}`,
+      type: 'group',
+      position: avgPosition,
+      data: {
+        label,
+        isExpanded: false,
+        childNodes: nodeIds,
+      },
+    };
+
+    // Hide the selected nodes
+    setNodes((prevNodes) => [
+      ...prevNodes.map((node) => ({
+        ...node,
+        selected: false,
+        hidden: nodeIds.includes(node.id),
+      })),
+      groupNode,
+    ]);
+  };
+
   const value = {
     nodes,
     edges,
@@ -342,6 +379,7 @@ export const FlowProvider = ({ children }: FlowProviderProps) => {
     addCombinerNode,
     addJsonNode,
     updateCombinerNodes,
+    createGroupFromSelection,
     setNodes,
     setEdges,
   };
