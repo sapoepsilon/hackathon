@@ -11,7 +11,7 @@ import { DockerContainer } from "@/types/docker"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import { useToast } from "@/hooks/use-toast"
-
+import ignoredContainers from '../api/containers/ignored-containers.json'
 
 interface DockerContainersTableProps {
   containers: DockerContainer[]
@@ -107,7 +107,9 @@ export function DockerContainersTable({ containers, onContainerDeleted }: Docker
             </TableRow>
           </TableHeader>
           <TableBody>
-            {containers.map((container) => (
+            {containers
+              .filter((container) => !ignoredContainers.ignoredContainers.includes(container.ID.substring(0, 12)))
+              .map((container) => (
               <TableRow key={container.ID}>
                 <TableCell>{container.ID.substring(0, 12)}</TableCell>
                 <TableCell>{container.Names[0]?.replace('/', '')}</TableCell>

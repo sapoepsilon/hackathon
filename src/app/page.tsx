@@ -4,11 +4,12 @@ import { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { DockerContainersTable } from './components/DockerContainersTable';
 import { DockerContainer } from '@/types/docker';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Home() {
+  const { toast } = useToast();
   const [deploymentStatus, setDeploymentStatus] = useState('idle');
   const [containerLogs, setContainerLogs] = useState('');
   const [deployedUrl, setDeployedUrl] = useState('');
@@ -29,6 +30,9 @@ server.listen(3000, () => {
     try {
       setDeploymentStatus('deploying');
       setContainerLogs('Building and deploying container...');
+      toast({
+        description: 'Building and deploying container...',
+      });
 
       const response = await fetch('/api/deploy', {
         method: 'POST',
@@ -44,12 +48,36 @@ server.listen(3000, () => {
         setDeploymentStatus('deployed');
         setContainerLogs(`Container ${data.containerId} running successfully`);
         setDeployedUrl(data.url);
+        toast({
+          description: (
+            <div className="space-y-2">
+              <p>Container {data.containerId} running successfully</p>
+              <p>
+                Your application is deployed at:{" "}
+                <a 
+                  href={data.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-blue-500 hover:underline"
+                >
+                  {data.url}
+                </a>
+              </p>
+            </div>
+          ),
+          variant: "default",
+        });
       } else {
         throw new Error(data.error);
       }
     } catch (error: any) {
       setDeploymentStatus('error');
       setContainerLogs(`Deployment failed: ${error.message ?? 'no error message provided'}`);
+      toast({
+        title: "Deployment Failed",
+        description: error.message ?? 'no error message provided',
+        variant: "destructive",
+      });
     }
   };
 
@@ -97,23 +125,7 @@ server.listen(3000, () => {
         >
           {deploymentStatus === 'deploying' ? 'Deploying...' : 'Deploy'}
         </Button>
-
-        {deployedUrl && (
-          <Alert className="mt-4">
-            <AlertDescription>
-              Your application is deployed at: <a href={deployedUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{deployedUrl}</a>
-            </AlertDescription>
-          </Alert>
-        )}
       </div>
-
-      {containerLogs && (
-        <Card>
-          <CardContent className="p-4 font-mono text-sm">
-            {containerLogs}
-          </CardContent>
-        </Card>
-      )}
 
       <DockerContainersTable containers={containers} />
     </main>
