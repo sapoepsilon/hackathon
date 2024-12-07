@@ -1,56 +1,55 @@
-import { ReactFlow, Background, Controls, Node, addEdge, Handle, Position, Edge } from "@xyflow/react";
+import {
+  ReactFlow,
+  Background,
+  Controls,
+  Node,
+  Edge,
+  Connection,
+  Handle,
+  Position,
+  Panel,
+} from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "@/styles/flow.css";
-import { useFlow } from "../hooks/useFlow";
+import { useEffect, useState, useMemo } from "react";
 import { useTheme } from "next-themes";
-import { Button } from "./ui/button";
-import { Plus } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { useEffect, useState, useMemo, useCallback } from "react";
-import { Deployment } from "@/types/deployment";
-import { supabase } from "@/lib/supabase";
-import { dockerContainer } from "@/types/dockerContainer";
-import { Input } from "./ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Node as NodeType } from "@xyflow/react";
+import { FlowProvider, useFlowContext } from "./flow/FlowProvider";
+import { ApiNode, CombinerNode } from "./flow/NodeTypes";
+import { AddNodeDialog, ApiDialog, JsonDialog } from "./flow/DialogComponents";
+import { FlowControls } from "./flow/FlowControls";
 
 interface FlowCanvasProps {
   height?: string;
   width?: string;
 }
 
-export default function FlowCanvas({
+function FlowCanvasContent({
   height = "75vh",
   width = "100%",
 }: FlowCanvasProps): JSX.Element {
   const {
     nodes,
     edges,
+    containers,
+    isExecuting,
     onNodesChange,
     onEdgesChange,
     onConnect,
+    executeApiNode,
+    executeFlow,
     addNode,
-    updateNode,
+    addCombinerNode,
+    updateCombinerNodes,
     setNodes,
     setEdges,
-  } = useFlow([], []);
+  } = useFlowContext();
 
   const { theme, systemTheme } = useTheme();
-  const [containers, setContainers] = useState<Deployment[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-  const [selectedResponseNode, setSelectedResponseNode] = useState<Node | null>(null);
+  const [selectedNode, setSelectedNode] = useState<NodeType | null>(null);
+  const [selectedResponseNode, setSelectedResponseNode] =
+    useState<NodeType | null>(null);
   const [apiInput, setApiInput] = useState("");
   const [inputType, setInputType] = useState<
     "string" | "number" | "json" | "array-number" | "array-string"
@@ -58,93 +57,19 @@ export default function FlowCanvas({
   const [isApiDialogOpen, setIsApiDialogOpen] = useState(false);
   const [selectedJsonPath, setSelectedJsonPath] = useState<string>("");
   const [isJsonDialogOpen, setIsJsonDialogOpen] = useState(false);
-  const [isExecuting, setIsExecuting] = useState(false);
-  const [executionOrder, setExecutionOrder] = useState<string[]>([]);
 
   const currentTheme = theme === "system" ? systemTheme : theme;
 
   useEffect(() => {
-    const fetchContainers = async () => {
-      const { data: deployments } = await supabase
-        .from("deployments")
-        .select("*");
-      if (deployments) {
-        setContainers(deployments);
-      }
-    };
-    fetchContainers();
-  }, []);
+    updateCombinerNodes();
+  }, [edges, nodes]);
 
-  const handleContainerSelect = async (container: Deployment) => {
-    try {
-      const response = await fetch("/api/containers");
-      const data = await response.json();
-
-      if (!data.success || !data.containers) {
-        console.error("Failed to get containers");
-        return;
-      }
-
-      const selectedContainer = data.containers.find((c: dockerContainer) => {
-        return c.ID === container.container_id;
-      });
-
-      if (!selectedContainer) {
-        console.error("Container not found");
-        return;
-      }
-
-      const newNode = await addNode({
-        id: `node-${Date.now()}`,
-        type: "api",
-        label: `${container.method} ${container.url}`,
-        containerId: container.container_id,
-        deploymentUrl: `http://localhost:${
-          selectedContainer.Ports.split(":")[1].split("->")[0]
-        }`,
-        method: container.method,
-        inputs: container.inputs?.map(input => ({
-          id: input.id,
-          type: input.type
-        })) || [],
-        outputType: container.outputs,
-        inputValues: {},
-        output: null,
-      });
-
-      console.log('Created new node:', newNode); // Debug log
-      setIsDialogOpen(false);
-    } catch (error) {
-      console.error("Error getting container URL:", error);
-    }
-  };
-
-  const getJsonPaths = (obj: any, parentPath = ""): string[] => {
-    if (!obj || typeof obj !== "object") return [];
-    
-    return Object.entries(obj).reduce((paths: string[], [key, value]) => {
-      const currentPath = parentPath ? `${parentPath}.${key}` : key;
-      paths.push(currentPath);
-      
-      if (value && typeof value === "object" && !Array.isArray(value)) {
-        paths.push(...getJsonPaths(value, currentPath));
-      }
-      return paths;
-    }, []);
-  };
-
-  const getValueFromPath = (obj: any, path: string) => {
-    return path.split('.').reduce((acc, part) => acc?.[part], obj);
-  };
-
-  const handleNodeClick = (event: React.MouseEvent, node: Node) => {
-    console.log("Node clicked:", node);  // Debug log
-    if (node.data.type === "api") {
+  const handleNodeClick = (event: React.MouseEvent, node: NodeType) => {
+    if (node.type === "api") {
       setSelectedNode(node);
       setIsApiDialogOpen(true);
-    } else if (node.type === "response" || (node.data && node.data.type === "response")) {
-      console.log("Response node clicked, data:", node.data);  // Debug log
-      if (node.data && node.data.output && typeof node.data.output === "object") {
+    } else if (node.type === "response" || node.data?.type === "response") {
+      if (node.data?.output && typeof node.data.output === "object") {
         setSelectedResponseNode(node);
         setSelectedJsonPath("");
         setIsJsonDialogOpen(true);
@@ -153,71 +78,26 @@ export default function FlowCanvas({
   };
 
   const handleApiCall = async () => {
-    if (!selectedNode?.data.deploymentUrl) return;
+    if (!selectedNode?.id) return;
 
     try {
-      const response = await fetch("/api/proxy", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          url: selectedNode.data.deploymentUrl,
-          method: selectedNode.data.method,
-          data: {
-            input: apiInput
-              ? inputType === "json"
-                ? JSON.parse(apiInput)
-                : inputType === "array-number" || inputType === "array-string"
-                ? (() => {
-                    try {
-                      const parsed = JSON.parse(apiInput);
-                      if (!Array.isArray(parsed)) {
-                        throw new Error("Input must be an array");
-                      }
-                      if (inputType === "array-number") {
-                        if (!parsed.every((item) => typeof item === "number")) {
-                          throw new Error("All array items must be numbers");
-                        }
-                      } else if (inputType === "array-string") {
-                        if (!parsed.every((item) => typeof item === "string")) {
-                          throw new Error("All array items must be strings");
-                        }
-                      }
-                      return parsed;
-                    } catch (e) {
-                      throw new Error(
-                        e instanceof Error ? e.message : "Invalid array format"
-                      );
-                    }
-                  })()
-                : inputType === "number"
-                ? Number(apiInput)
-                : apiInput
-              : {},
-          },
-        }),
-      });
-
-      const data = await response.json();
-      
       // Create a response node
-      const responseNode: Node = {
+      const responseNode: NodeType = {
         id: `response-${Date.now()}`,
-        type: 'response',
+        type: "response",
         position: {
           x: selectedNode.position.x + 200,
           y: selectedNode.position.y,
         },
         data: {
-          type: 'response',
-          label: 'Response',
-          output: data,
-          outputType: typeof data === "object" ? "json" : typeof data,
+          type: "response",
+          label: "Response",
+          output: null,
+          outputType: "json",
         },
       };
 
-      // Add response node
+      // Add response node first
       setNodes((nds) => [...nds, responseNode]);
 
       // Connect API node to response node
@@ -230,7 +110,36 @@ export default function FlowCanvas({
         },
       ]);
 
-      // Close the dialog
+      // Update the selected node's input values
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === selectedNode.id
+            ? {
+                ...n,
+                data: {
+                  ...n.data,
+                  inputValues: {
+                    input: apiInput
+                      ? inputType === "json"
+                        ? JSON.parse(apiInput)
+                        : inputType === "array-number" ||
+                          inputType === "array-string"
+                        ? JSON.parse(apiInput)
+                        : inputType === "number"
+                        ? Number(apiInput)
+                        : apiInput
+                      : {},
+                  },
+                },
+              }
+            : n
+        )
+      );
+
+      // Execute the API call
+      await executeApiNode(selectedNode.id);
+
+      // Close the dialog and reset input
       setIsApiDialogOpen(false);
       setApiInput("");
     } catch (error) {
@@ -238,38 +147,120 @@ export default function FlowCanvas({
     }
   };
 
+  const nodeTypes = useMemo(
+    () => ({
+      api: (props: any) => {
+        console.log("API node props:", props); // Debug log
+        return (
+          <ApiNode
+            {...props}
+            isExecuting={isExecuting}
+            onExecute={(id: string) => {
+              console.log("Execute called with id:", id); // Debug log
+              const node = nodes.find((n) => n.id === id);
+              if (!node) {
+                console.error("Node not found:", id);
+                return;
+              }
+
+              // Create a response node
+              const responseNode: NodeType = {
+                id: `response-${Date.now()}`,
+                type: "response",
+                position: {
+                  x: node.position.x + 200,
+                  y: node.position.y,
+                },
+                data: {
+                  type: "response",
+                  label: "Response",
+                  output: null,
+                  outputType: "json",
+                },
+              };
+
+              // Add response node first
+              setNodes((nds) => [...nds, responseNode]);
+
+              // Connect API node to response node
+              setEdges((eds) => [
+                ...eds,
+                {
+                  id: `${id}-${responseNode.id}`,
+                  source: id,
+                  target: responseNode.id,
+                },
+              ]);
+
+              // Execute the API call
+              executeApiNode(id);
+            }}
+          />
+        );
+      },
+      combiner: CombinerNode,
+      response: (props: any) => (
+        <div className="px-4 py-2 shadow-md rounded-md bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700">
+          <div className="font-bold">Response</div>
+          <div className="text-sm mt-2 max-w-[200px] overflow-hidden text-ellipsis">
+            {props.data.output ? (
+              <pre className="whitespace-pre-wrap">
+                {JSON.stringify(props.data.output, null, 2)}
+              </pre>
+            ) : (
+              "Waiting for response..."
+            )}
+          </div>
+          <Handle type="source" position={Position.Right} id="output" />
+        </div>
+      ),
+    }),
+    [isExecuting, nodes, executeApiNode, setNodes, setEdges]
+  );
+
+  const getJsonPaths = (obj: any, parentPath = ""): string[] => {
+    if (!obj || typeof obj !== "object") return [];
+
+    return Object.entries(obj).reduce((paths: string[], [key, value]) => {
+      const currentPath = parentPath ? `${parentPath}.${key}` : key;
+      paths.push(currentPath);
+
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        paths.push(...getJsonPaths(value, currentPath));
+      }
+      return paths;
+    }, []);
+  };
+
+  const getValueFromPath = (obj: any, path: string) => {
+    return path.split(".").reduce((acc, part) => acc?.[part], obj);
+  };
+
   const handleJsonValueSelect = () => {
-    console.log("Creating value node from:", selectedResponseNode); // Debug log
     if (!selectedResponseNode || !selectedJsonPath) return;
 
-    const value = getValueFromPath(selectedResponseNode.data.output, selectedJsonPath);
-    console.log("Selected value:", value); // Debug log
-    
-    // Create a new node with the selected value
-    const valueNode: Node = {
+    const value = getValueFromPath(
+      selectedResponseNode.data.output,
+      selectedJsonPath
+    );
+
+    const valueNode: NodeType = {
       id: `value-${Date.now()}`,
-      type: 'value',
+      type: "value",
       position: {
         x: (selectedResponseNode.position?.x || 0) + 200,
-        y: (selectedResponseNode.position?.y || 0),
+        y: selectedResponseNode.position?.y || 0,
       },
       data: {
-        type: 'value',
+        type: "value",
         label: `Value: ${selectedJsonPath}`,
         output: value,
         outputType: typeof value === "object" ? "json" : typeof value,
       },
     };
 
-    console.log("Creating value node:", valueNode); // Debug log
+    setNodes((nds) => [...nds, valueNode]);
 
-    // Add value node
-    setNodes((nds) => {
-      console.log("Current nodes:", nds); // Debug log
-      return [...nds, valueNode];
-    });
-
-    // Connect response node to value node
     setEdges((eds) => [
       ...eds,
       {
@@ -282,331 +273,14 @@ export default function FlowCanvas({
     setIsJsonDialogOpen(false);
   };
 
-  const executeApiNode = async (nodeId: string) => {
-    const node = nodes.find(n => n.id === nodeId);
-    if (!node || node.data.type !== 'api') return;
-
-    try {
-      const response = await fetch("/api/proxy", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          url: node.data.deploymentUrl,
-          method: node.data.method,
-          data: { input: node.data.inputValues || {} },
-        }),
-      });
-
-      const data = await response.json();
-      
-      // Update the node with the response
-      setNodes(nds => 
-        nds.map(n => 
-          n.id === nodeId 
-            ? { ...n, data: { ...n.data, output: data, outputType: typeof data === "object" ? "json" : typeof data } }
-            : n
-        )
-      );
-
-      return data;
-    } catch (error) {
-      console.error("Error executing API node:", error);
-      return null;
-    }
-  };
-
-  const executeFlow = async () => {
-    setIsExecuting(true);
-    try {
-      // Find all API nodes
-      const apiNodes = nodes.filter(n => n.data.type === 'api');
-      
-      // Sort nodes based on connections
-      const sortedNodes = topologicalSort(apiNodes, edges);
-      setExecutionOrder(sortedNodes.map(n => n.id));
-
-      // Execute nodes in sequence
-      for (const nodeId of executionOrder) {
-        await executeApiNode(nodeId);
-      }
-    } catch (error) {
-      console.error("Error executing flow:", error);
-    }
-    setIsExecuting(false);
-  };
-
-  const topologicalSort = (apiNodes: Node[], edges: Edge[]) => {
-    const graph = new Map<string, Set<string>>();
-    const inDegree = new Map<string, number>();
-
-    // Initialize graph
-    apiNodes.forEach(node => {
-      graph.set(node.id, new Set());
-      inDegree.set(node.id, 0);
-    });
-
-    // Build graph
-    edges.forEach(edge => {
-      const sourceNode = nodes.find(n => n.id === edge.source);
-      const targetNode = nodes.find(n => n.id === edge.target);
-      
-      if (sourceNode?.data.type === 'api' && targetNode?.data.type === 'api') {
-        graph.get(edge.source)?.add(edge.target);
-        inDegree.set(edge.target, (inDegree.get(edge.target) || 0) + 1);
-      }
-    });
-
-    // Perform topological sort
-    const result: Node[] = [];
-    const queue = apiNodes.filter(node => (inDegree.get(node.id) || 0) === 0);
-
-    while (queue.length > 0) {
-      const node = queue.shift()!;
-      result.push(node);
-
-      graph.get(node.id)?.forEach(neighbor => {
-        inDegree.set(neighbor, (inDegree.get(neighbor) || 0) - 1);
-        if (inDegree.get(neighbor) === 0) {
-          queue.push(nodes.find(n => n.id === neighbor)!);
-        }
-      });
-    }
-
-    return result;
-  };
-
-  const handleAddCombinerNode = () => {
-    const newNode = {
-      id: `combiner-${Date.now()}`,
-      type: 'combiner',
-      position: { x: 300, y: 200 },
-      data: { 
-        combined: null,
-        outputType: 'json',
-        inputs: [
-          { id: 'input1', type: 'json' },
-          { id: 'input2', type: 'json' }
-        ],
-        inputValues: {}
-      },
-    };
-    setNodes((nds) => [...nds, newNode]);
-  };
-
-  const CombinerNode = ({ data }: { data: any }) => {
-    return (
-      <div className="px-4 py-2 shadow-md rounded-md bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700">
-        <div className="font-bold">JSON Combiner</div>
-        <Handle 
-          type="target" 
-          position={Position.Left} 
-          id="input1" 
-          style={{ top: '40%' }}
-        />
-        <Handle 
-          type="target" 
-          position={Position.Left} 
-          id="input2" 
-          style={{ top: '60%' }}
-        />
-        <div className="text-sm mt-2 max-w-[200px] overflow-hidden text-ellipsis">
-          {data.combined ? (
-            <pre className="whitespace-pre-wrap">
-              {JSON.stringify(data.combined, null, 2)}
-            </pre>
-          ) : (
-            'Connect two inputs'
-          )}
-        </div>
-        <Handle 
-          type="source" 
-          position={Position.Right} 
-          id="output"
-        />
-      </div>
-    );
-  };
-
-  const nodeTypes = useMemo(
-    () => ({
-      api: ({ data }: { data: any }) => (
-        <div className="relative px-4 py-2 shadow-lg rounded-md bg-background border border-border">
-          <div className="flex items-center justify-between mb-2">
-            <div className="font-bold text-sm">{data.label}</div>
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={(e) => {
-                e.stopPropagation();
-                executeApiNode(data.id);
-              }}
-              disabled={isExecuting}
-            >
-              Run
-            </Button>
-          </div>
-          
-          {/* Input handles */}
-          <div className="absolute -left-2 top-0 bottom-0 flex flex-col justify-around">
-            {data.inputs?.map((input: any) => (
-              <div key={input.id} className="flex items-center gap-2">
-                <div className="text-xs text-muted-foreground">in: {input.type}</div>
-                <Handle
-                  type="target"
-                  position={Position.Left}
-                  id={input.id}
-                  style={{ background: '#555' }}
-                />
-              </div>
-            ))}
-          </div>
-          
-          {/* Output handle */}
-          <div className="absolute -right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
-            <div className="text-xs text-muted-foreground">out: {data.outputType}</div>
-            <Handle
-              type="source"
-              position={Position.Right}
-              id="output"
-              style={{ background: '#555' }}
-            />
-          </div>
-
-          {/* Display input values if any */}
-          {data.inputValues && Object.entries(data.inputValues).length > 0 && (
-            <div className="mt-2 text-xs">
-              <div className="font-semibold">Inputs:</div>
-              {Object.entries(data.inputValues).map(([key, value]) => (
-                <div key={key} className="ml-2">
-                  {key}: {JSON.stringify(value)}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Display output if any */}
-          {data.output && (
-            <div className="mt-2 text-xs">
-              <div className="font-semibold">Output:</div>
-              <div className="ml-2 max-w-[200px] overflow-hidden">
-                <pre className="bg-secondary/50 p-2 rounded">
-                  {JSON.stringify(data.output, null, 2)}
-                </pre>
-              </div>
-            </div>
-          )}
-        </div>
-      ),
-    }),
-    [executeApiNode, isExecuting]
-  );
-
-  useEffect(() => {
-    const handleConnect = (params: Connection) => {
-      const sourceNode = nodes.find(n => n.id === params.source);
-      const targetNode = nodes.find(n => n.id === params.target);
-      
-      // Get the source and target types
-      const sourceType = sourceNode?.data?.outputType || 'json';
-      const targetType = params.targetHandle === 'input1' || params.targetHandle === 'input2' ? 'json' : targetNode?.data?.inputType;
-      
-      // Only allow connection if types match
-      if (sourceType === targetType) {
-        setEdges((eds) => addEdge(params, eds));
-      }
-    };
-
-    // Override the onConnect function
-    onConnect.current = handleConnect;
-  }, [nodes, setEdges]);
-
-  useEffect(() => {
-    const updateCombinerNodes = () => {
-      let hasUpdates = false;
-      const newNodes = nodes.map((node) => {
-        if (node.type !== 'combiner') return node;
-
-        const input1Edge = edges.find((e) => e.target === node.id && e.targetHandle === 'input1');
-        const input2Edge = edges.find((e) => e.target === node.id && e.targetHandle === 'input2');
-        
-        if (!input1Edge || !input2Edge) return node;
-
-        const sourceNode1 = nodes.find((n) => n.id === input1Edge.source);
-        const sourceNode2 = nodes.find((n) => n.id === input2Edge.source);
-        
-        const value1 = sourceNode1?.data?.output;
-        const value2 = sourceNode2?.data?.output;
-        
-        if (value1 === undefined || value2 === undefined) return node;
-        
-        // Only update if values have changed
-        const newCombined = {
-          input1: value1,
-          input2: value2
-        };
-        
-        if (JSON.stringify(node.data.combined) === JSON.stringify(newCombined)) {
-          return node;
-        }
-        
-        hasUpdates = true;
-        return {
-          ...node,
-          data: {
-            ...node.data,
-            combined: newCombined,
-            output: newCombined
-          }
-        };
-      });
-
-      if (hasUpdates) {
-        setNodes(newNodes);
-      }
-    };
-
-    updateCombinerNodes();
-  }, [edges, nodes, setNodes]);
-
-  const handleEdgesUpdate = useCallback((oldEdge: Edge, newConnection: Connection) => {
-    setEdges((els) => updateEdge(oldEdge, newConnection, els));
-  }, []);
-
-  nodeTypes.combiner = CombinerNode;
-
   return (
     <div className="relative" style={{ height, width }}>
-      <div className="absolute top-4 right-4 z-10 flex gap-2">
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Node
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Node</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4">
-              {containers.map((container) => (
-                <Button
-                  key={container.id}
-                  variant="outline"
-                  onClick={() => handleContainerSelect(container)}
-                >
-                  {container.url}
-                </Button>
-              ))}
-            </div>
-          </DialogContent>
-        </Dialog>
-        <Button onClick={handleAddCombinerNode}>
-          Add Combiner
-        </Button>
-      </div>
+      <FlowControls
+        onAddNode={() => setIsDialogOpen(true)}
+        onAddCombiner={addCombinerNode}
+        onExecuteFlow={executeFlow}
+        isExecuting={isExecuting}
+      />
 
       <ReactFlow
         nodes={nodes}
@@ -614,7 +288,6 @@ export default function FlowCanvas({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
-        onEdgesUpdate={handleEdgesUpdate}
         nodeTypes={nodeTypes}
         onNodeClick={handleNodeClick}
         fitView
@@ -623,128 +296,51 @@ export default function FlowCanvas({
         <Controls />
       </ReactFlow>
 
-      <Dialog open={isApiDialogOpen} onOpenChange={setIsApiDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Call API Node</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4">
-            <div className="grid gap-2">
-              <label>Input Type</label>
-              <Select
-                value={inputType}
-                onValueChange={(
-                  value:
-                    | "string"
-                    | "number"
-                    | "json"
-                    | "array-number"
-                    | "array-string"
-                ) => setInputType(value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select input type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="string">String</SelectItem>
-                  <SelectItem value="number">Number</SelectItem>
-                  <SelectItem value="json">JSON</SelectItem>
-                  <SelectItem value="array-number">Array of Numbers</SelectItem>
-                  <SelectItem value="array-string">Array of Strings</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <label>Input (optional)</label>
-              <Input
-                value={apiInput}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (inputType === "number") {
-                    if (value === "" || !isNaN(Number(value))) {
-                      setApiInput(value);
-                    }
-                  } else {
-                    setApiInput(value);
-                  }
-                }}
-                type={inputType === "number" ? "number" : "text"}
-                placeholder={`Enter ${
-                  inputType === "json"
-                    ? "JSON input"
-                    : inputType === "array-number"
-                    ? "numbers (e.g., [1,2,3])"
-                    : inputType === "array-string"
-                    ? "strings (e.g., ['a','b','c'])"
-                    : inputType
-                } input`}
-              />
-            </div>
-            <Button onClick={handleApiCall}>Call API</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <AddNodeDialog
+        isOpen={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        containers={containers}
+        onContainerSelect={addNode}
+      />
 
-      <Dialog open={isJsonDialogOpen} onOpenChange={setIsJsonDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Select JSON Value</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4">
-            <div className="grid gap-2">
-              <label>Available Paths</label>
-              <Select
-                value={selectedJsonPath}
-                onValueChange={(value) => {
-                  console.log("Selected path:", value); // Debug log
-                  setSelectedJsonPath(value);
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a value" />
-                </SelectTrigger>
-                <SelectContent>
-                  {selectedResponseNode?.data.output &&
-                    getJsonPaths(selectedResponseNode.data.output).map((path) => (
-                      <SelectItem key={path} value={path}>
-                        {path}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <label>Preview</label>
-              <pre className="bg-secondary p-2 rounded text-xs">
-                {selectedJsonPath && selectedResponseNode
-                  ? JSON.stringify(
-                      getValueFromPath(selectedResponseNode.data.output, selectedJsonPath),
-                      null,
-                      2
-                    )
-                  : "Select a path to preview value"}
-              </pre>
-            </div>
-            <Button 
-              onClick={() => {
-                console.log("Extract Value clicked"); // Debug log
-                handleJsonValueSelect();
-              }}
-            >
-              Extract Value
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-      <div className="absolute bottom-4 right-4 z-10">
-        <Button 
-          onClick={executeFlow}
-          disabled={isExecuting}
-          size="lg"
-        >
-          {isExecuting ? "Executing..." : "Execute Flow"}
-        </Button>
-      </div>
+      <ApiDialog
+        isOpen={isApiDialogOpen}
+        onOpenChange={setIsApiDialogOpen}
+        inputType={inputType}
+        onInputTypeChange={setInputType}
+        apiInput={apiInput}
+        onApiInputChange={setApiInput}
+        onApiCall={handleApiCall}
+      />
+
+      <JsonDialog
+        isOpen={isJsonDialogOpen}
+        onOpenChange={setIsJsonDialogOpen}
+        selectedJsonPath={selectedJsonPath}
+        onJsonPathChange={setSelectedJsonPath}
+        jsonPaths={
+          selectedResponseNode?.data.output
+            ? getJsonPaths(selectedResponseNode.data.output)
+            : []
+        }
+        previewValue={
+          selectedJsonPath && selectedResponseNode
+            ? getValueFromPath(
+                selectedResponseNode.data.output,
+                selectedJsonPath
+              )
+            : null
+        }
+        onExtractValue={handleJsonValueSelect}
+      />
     </div>
+  );
+}
+
+export default function FlowCanvas(props: FlowCanvasProps): JSX.Element {
+  return (
+    <FlowProvider>
+      <FlowCanvasContent {...props} />
+    </FlowProvider>
   );
 }
