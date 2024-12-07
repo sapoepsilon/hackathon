@@ -2,28 +2,58 @@
 
 import { useState } from 'react';
 import Editor from '@monaco-editor/react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function Home() {
   const [deploymentStatus, setDeploymentStatus] = useState('idle');
   const [containerLogs, setContainerLogs] = useState('');
   const [deployedUrl, setDeployedUrl] = useState('');
-  const [code, setCode] = useState('// Write your code here\n');
+  const [code, setCode] = useState(`// Write your Node.js code here
+const http = require('http');
+
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Hello from your deployed container!');
+});
+
+server.listen(3000, () => {
+  console.log('Server running on port 3000');
+});`);
 
   const handleDeploy = async () => {
-    setDeploymentStatus('deploying');
-    setContainerLogs('Deploying...');
-    
-    setTimeout(() => {
-      setDeploymentStatus('deployed');
-      setContainerLogs('Container running successfully');
-      setDeployedUrl('https://your-app.example.com');
-    }, 2000);
+    try {
+      setDeploymentStatus('deploying');
+      setContainerLogs('Building and deploying container...');
+
+      const response = await fetch('/api/deploy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ code }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setDeploymentStatus('deployed');
+        setContainerLogs(`Container ${data.containerId} running successfully`);
+        setDeployedUrl(data.url);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error: any) {
+      setDeploymentStatus('error');
+      setContainerLogs(`Deployment failed: ${error.message ?? 'no error message provided'}`);
+    }
   };
 
   return (
-    <main>
-      <div>
-        <div>
+    <main className="container mx-auto p-4 space-y-4">
+      <Card>
+        <CardContent className="p-4">
           <Editor
             height="75vh"
             defaultLanguage="javascript"
@@ -35,8 +65,33 @@ export default function Home() {
               fontSize: 14,
             }}
           />
-        </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-between items-center">
+        <Button 
+          onClick={handleDeploy}
+          disabled={deploymentStatus === 'deploying'}
+        >
+          {deploymentStatus === 'deploying' ? 'Deploying...' : 'Deploy'}
+        </Button>
+
+        {deployedUrl && (
+          <Alert>
+            <AlertDescription>
+              Your application is running at: <a href={deployedUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{deployedUrl}</a>
+            </AlertDescription>
+          </Alert>
+        )}
       </div>
+
+      {containerLogs && (
+        <Card>
+          <CardContent className="p-4 font-mono text-sm">
+            {containerLogs}
+          </CardContent>
+        </Card>
+      )}
     </main>
   );
 }
