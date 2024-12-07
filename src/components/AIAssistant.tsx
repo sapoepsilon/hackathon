@@ -12,7 +12,11 @@ interface AIAssistantProps {
   onStreamEnd?: () => void;
 }
 
-export function AIAssistant({ onUpdateCode, onStreamStart, onStreamEnd }: AIAssistantProps) {
+export function AIAssistant({
+  onUpdateCode,
+  onStreamStart,
+  onStreamEnd,
+}: AIAssistantProps) {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -45,14 +49,14 @@ export function AIAssistant({ onUpdateCode, onStreamStart, onStreamEnd }: AIAssi
 
       while (true) {
         const { done, value } = await reader.read();
-        
+
         if (done) {
           break;
         }
 
         const chunk = decoder.decode(value, { stream: true });
         accumulatedCode += chunk;
-        
+
         if (onUpdateCode) {
           onUpdateCode(accumulatedCode);
         }
@@ -60,7 +64,9 @@ export function AIAssistant({ onUpdateCode, onStreamStart, onStreamEnd }: AIAssi
     } catch (error) {
       console.error("Error:", error);
       // Show error in the code editor
-      onUpdateCode?.(`// Error occurred while generating code:\n// ${error.message}`);
+      onUpdateCode?.(
+        `// Error occurred while generating code:\n// ${error.message}`
+      );
     } finally {
       setIsLoading(false);
       onStreamEnd?.();
@@ -91,7 +97,8 @@ export function AIAssistant({ onUpdateCode, onStreamStart, onStreamEnd }: AIAssi
           </Button>
         </div>
         <p className="text-xs text-muted-foreground mt-2">
-          Press {navigator.platform.includes("Mac") ? "⌘" : "Ctrl"} + Enter to generate code
+          Press {navigator.platform.includes("Mac") ? "⌘" : "Ctrl"} + Enter to
+          generate code
         </p>
       </form>
     </div>
