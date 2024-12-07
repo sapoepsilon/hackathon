@@ -6,14 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { DockerContainersTable } from './components/DockerContainersTable';
-
-interface DockerContainer {
-  ID: string;
-  Names: string[];
-  Image: string;
-  State: string;
-  Status: string;
-}
+import { DockerContainer } from '@/types/docker';
 
 export default function Home() {
   const [deploymentStatus, setDeploymentStatus] = useState('idle');
