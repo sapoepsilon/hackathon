@@ -29,12 +29,16 @@ export async function DELETE(
 ): Promise<NextResponse> {
   try {
     const { containerId } = await request.json();
+    console.log('Attempting to delete container:', containerId);
+    
     await execAsync(`docker rm -f ${containerId}`);
+    console.log('Container deleted successfully');
+    
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting Docker container:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to delete Docker container' },
+      { success: false, error: error instanceof Error ? error.message : 'Failed to delete Docker container' },
       { status: 500 }
     );
   }
@@ -44,6 +48,23 @@ export async function POST(
   request: NextRequest
 ): Promise<NextResponse> {
   try {
+    const { truncatedId } = await request.json();
+    if (truncatedId) {
+      // Get full container ID using docker inspect
+      const { stdout } = await execAsync(`docker ps -a --no-trunc --filter "id=${truncatedId}" --format "{{.ID}}"`);
+      const fullId = stdout.trim();
+      
+      if (!fullId) {
+        return NextResponse.json(
+          { success: false, error: 'Container not found' },
+          { status: 404 }
+        );
+      }
+      
+      return NextResponse.json({ success: true, fullId });
+    }
+    
+    // Existing port mapping logic
     const { containerId } = await request.json();
     const { stdout } = await execAsync(`docker port ${containerId}`);
     const ports = stdout.trim().split('\n');
@@ -54,9 +75,9 @@ export async function POST(
     });
     return NextResponse.json({ success: true, urls: mappings });
   } catch (error) {
-    console.error('Error getting container URLs:', error);
+    console.error('Error processing container request:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to get container URLs' },
+      { success: false, error: 'Failed to process container request' },
       { status: 500 }
     );
   }

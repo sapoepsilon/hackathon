@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { DockerContainersTable } from './components/DockerContainersTable';
+import { DockerContainersTable } from '../components/DockerContainersTable';
 import { DockerContainer } from '@/types/docker';
 import { useToast } from '@/hooks/use-toast';
 import ignoredContainers from './api/containers/ignored-containers.json';
