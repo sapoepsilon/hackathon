@@ -149,8 +149,8 @@ export const ApiNode = ({ id, data }: ApiNodeProps) => {
 
       {/* Input handles */}
       <div className="absolute -left-3 top-0 bottom-0 flex flex-col justify-around">
-        {data.inputs?.map((input) => (
-          <div key={input.id} className="flex items-center gap-2">
+        {data.inputs?.map((input, index) => (
+          <div key={`${input.id}-${index}`} className="flex items-center gap-2">
             <div className="text-xs text-muted-foreground whitespace-nowrap bg-background/80 px-1.5 py-0.5 rounded">
               in: {input.type}
             </div>
@@ -314,6 +314,8 @@ interface JSONInputNodeData {
   inputJson?: any;
   selectedFields?: Array<{ field: string; valueOnly: boolean }>;
   output?: any;
+  outputType?: string;
+  isStringMode?: boolean;
 }
 
 interface JSONInputNodeProps {
@@ -321,11 +323,17 @@ interface JSONInputNodeProps {
 }
 
 export const JSONInputNode = ({ data }: JSONInputNodeProps) => {
+  const [isStringMode, setIsStringMode] = useState(data.isStringMode ?? false);
+  const [error, setError] = useState<string | null>(null);
   const [jsonText, setJsonText] = useState("");
-  const [error, setError] = useState("");
   const [manualInput, setManualInput] = useState(true);
   const [outputData, setOutputData] = useState<any>(null);
-  const [isStringMode, setIsStringMode] = useState(false);
+
+  // Update node data when string mode changes
+  useEffect(() => {
+    data.isStringMode = isStringMode;
+    data.outputType = isStringMode ? 'string' : 'json';
+  }, [isStringMode, data]);
 
   const handleJsonInput = (value: string) => {
     try {
@@ -465,7 +473,7 @@ export const JSONInputNode = ({ data }: JSONInputNodeProps) => {
         data-type={isStringMode ? "string" : "json"}
         data={
           isStringMode
-            ? outputData
+            ? typeof outputData === 'string' ? outputData : JSON.stringify(outputData)
             : data.selectedFields?.[0]?.field
             ? {
                 [data.selectedFields[0].field]: getValueByPath(
