@@ -493,7 +493,8 @@ export const JSONInputNode = ({ data }: JSONInputNodeProps) => {
 interface GroupNodeData {
   label: string;
   isExpanded: boolean;
-  childNodes: string[]; // IDs of the nodes in the group
+  childNodes: string[];
+  originalEdges: Edge[];
 }
 
 interface GroupNodeProps {
@@ -501,13 +502,12 @@ interface GroupNodeProps {
 }
 
 export const GroupNode = ({ data }: GroupNodeProps) => {
-  const { nodes, edges, setNodes } = useFlowContext();
+  const { nodes, edges, setNodes, setEdges } = useFlowContext();
 
   // Get all connections to and from the group's child nodes
   const groupConnections = edges.filter(
     (edge) =>
-      data.childNodes.includes(edge.source) ||
-      data.childNodes.includes(edge.target)
+      data.childNodes.includes(edge.source) || data.childNodes.includes(edge.target)
   );
 
   // Get external nodes that connect to this group
@@ -535,15 +535,54 @@ export const GroupNode = ({ data }: GroupNodeProps) => {
   };
 
   const toggleExpand = () => {
-    // Toggle visibility of child nodes
-    setNodes((prevNodes) =>
-      prevNodes.map((node) => ({
-        ...node,
-        hidden: data.childNodes.includes(node.id)
-          ? data.isExpanded
-          : node.hidden,
-      }))
-    );
+    const groupId = nodes.find((n) => n.type === "group" && n.data.childNodes === data.childNodes)?.id;
+
+    if (data.isExpanded) {
+      // Collapsing: Hide child nodes and restore group edges
+      setNodes((prevNodes) =>
+        prevNodes.map((node) => ({
+          ...node,
+          hidden: data.childNodes.includes(node.id),
+        }))
+      );
+
+      // Remove original edges and add group edges
+      const externalConnections = data.originalEdges.filter(
+        (edge) =>
+          (data.childNodes.includes(edge.source) && !data.childNodes.includes(edge.target)) ||
+          (!data.childNodes.includes(edge.source) && data.childNodes.includes(edge.target))
+      );
+
+      const groupEdges = externalConnections.map((edge) => {
+        const isSource = data.childNodes.includes(edge.source);
+        return {
+          id: `group-edge-${Date.now()}-${Math.random()}`,
+          source: isSource ? groupId! : edge.source,
+          target: isSource ? edge.target : groupId!,
+          type: edge.type,
+          data: edge.data,
+        };
+      });
+
+      setEdges((prevEdges) => [
+        ...prevEdges.filter((edge) => !data.originalEdges.some((oe) => oe.id === edge.id)),
+        ...groupEdges,
+      ]);
+    } else {
+      // Expanding: Show child nodes and restore original edges
+      setNodes((prevNodes) =>
+        prevNodes.map((node) => ({
+          ...node,
+          hidden: false,
+        }))
+      );
+
+      // Remove group edges and restore original edges
+      setEdges((prevEdges) => [
+        ...prevEdges.filter((edge) => !(edge.source === groupId || edge.target === groupId)),
+        ...data.originalEdges,
+      ]);
+    }
 
     // Update the group node's expanded state
     setNodes((prevNodes) =>

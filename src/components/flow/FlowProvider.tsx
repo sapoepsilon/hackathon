@@ -341,6 +341,25 @@ export const FlowProvider = ({ children }: FlowProviderProps) => {
       y: selectedNodes.reduce((sum, node) => sum + node.position.y, 0) / selectedNodes.length,
     };
 
+    // Find all connections to/from the selected nodes
+    const externalConnections = edges.filter(
+      edge => 
+        (nodeIds.includes(edge.source) && !nodeIds.includes(edge.target)) || 
+        (!nodeIds.includes(edge.source) && nodeIds.includes(edge.target))
+    );
+
+    // Create new edges for the group node
+    const newEdges = externalConnections.map(edge => {
+      const isSource = nodeIds.includes(edge.source);
+      return {
+        id: `group-edge-${Date.now()}-${Math.random()}`,
+        source: isSource ? `group-${Date.now()}` : edge.source,
+        target: isSource ? edge.target : `group-${Date.now()}`,
+        type: edge.type,
+        data: edge.data,
+      };
+    });
+
     // Create group node
     const groupNode: Node = {
       id: `group-${Date.now()}`,
@@ -350,10 +369,13 @@ export const FlowProvider = ({ children }: FlowProviderProps) => {
         label,
         isExpanded: false,
         childNodes: nodeIds,
+        originalEdges: edges.filter(
+          edge => nodeIds.includes(edge.source) || nodeIds.includes(edge.target)
+        ),
       },
     };
 
-    // Hide the selected nodes
+    // Hide the selected nodes and add group node
     setNodes((prevNodes) => [
       ...prevNodes.map((node) => ({
         ...node,
@@ -361,6 +383,14 @@ export const FlowProvider = ({ children }: FlowProviderProps) => {
         hidden: nodeIds.includes(node.id),
       })),
       groupNode,
+    ]);
+
+    // Update edges
+    setEdges((prevEdges) => [
+      ...prevEdges.filter(
+        edge => !(nodeIds.includes(edge.source) || nodeIds.includes(edge.target))
+      ),
+      ...newEdges,
     ]);
   };
 
