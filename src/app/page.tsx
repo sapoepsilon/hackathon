@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { DockerContainersTable } from './components/DockerContainersTable';
 import { DockerContainer } from '@/types/docker';
 import { useToast } from '@/hooks/use-toast';
+import ignoredContainers from './api/containers/ignored-containers.json';
 
 export default function Home() {
   const { toast } = useToast();
@@ -25,6 +26,9 @@ server.listen(3000, () => {
   console.log('Server running on port 3000');
 });`);
   const [containers, setContainers] = useState<DockerContainer[]>([]);
+  const nonIgnoredContainers = containers.filter(
+    container => !ignoredContainers.ignoredContainers.includes(container.ID)
+  );
 
   const handleDeploy = async () => {
     try {
@@ -127,7 +131,9 @@ server.listen(3000, () => {
         </Button>
       </div>
 
-      <DockerContainersTable containers={containers} />
+      {nonIgnoredContainers.length > 0 && (
+        <DockerContainersTable containers={nonIgnoredContainers} />
+      )}
     </main>
   );
 }
