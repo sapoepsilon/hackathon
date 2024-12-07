@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 interface FlowControlsProps {
   onAddNode: () => void;
   onAddCombiner: () => void;
+  onAddJson: () => void;
   onExecuteFlow: () => void;
   isExecuting: boolean;
 }
@@ -11,6 +12,7 @@ interface FlowControlsProps {
 export const FlowControls = ({
   onAddNode,
   onAddCombiner,
+  onAddJson,
   onExecuteFlow,
   isExecuting,
 }: FlowControlsProps) => {
@@ -23,6 +25,9 @@ export const FlowControls = ({
         </Button>
         <Button size="lg" className="w-[160px]" onClick={onAddCombiner}>
           Add Combiner
+        </Button>
+        <Button size="lg" className="w-[160px]" onClick={onAddJson}>
+          Add JSON
         </Button>
         <Button 
           size="lg"

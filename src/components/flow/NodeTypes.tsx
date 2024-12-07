@@ -1,7 +1,7 @@
 import { Handle, Position } from "@xyflow/react";
 import { Button } from "../ui/button";
 import { Copy, Check, Search } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "../ui/input";
 import { ApiDialog } from "./DialogComponents";
 import { useFlowContext } from "./FlowProvider";
@@ -25,6 +25,44 @@ interface ApiNodeProps {
   data: ApiNodeData;
 }
 
+// Utility functions for handling JSON fields
+const getNestedFields = (obj: any, prefix = ""): string[] => {
+  if (!obj || typeof obj !== "object") return [];
+
+  const fields: string[] = [];
+  
+  // Add the current path if it's not empty
+  if (prefix) {
+    fields.push(prefix);
+  }
+
+  for (const key in obj) {
+    const value = obj[key];
+    const newPrefix = prefix ? `${prefix}.${key}` : key;
+    
+    // Add the current field
+    fields.push(newPrefix);
+    
+    // If the value is an object or array, recursively get its fields
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      fields.push(...getNestedFields(value, newPrefix));
+    }
+  }
+
+  return fields;
+};
+
+const getValueByPath = (obj: any, path: string): any => {
+  return path.split(".").reduce((acc, part) => acc?.[part], obj);
+};
+
+const getDisplayValue = (value: any): string => {
+  if (value === null) return "null";
+  if (value === undefined) return "undefined";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+};
+
 export const ApiNode = ({ id, data }: ApiNodeProps) => {
   const { executeApiNode, isExecuting } = useFlowContext();
   const [isApiDialogOpen, setIsApiDialogOpen] = useState(false);
@@ -40,41 +78,11 @@ export const ApiNode = ({ id, data }: ApiNodeProps) => {
     executeApiNode(id);
   };
 
-  const getNestedFields = (obj: any, prefix = ""): string[] => {
-    if (!obj || typeof obj !== "object") return [];
-
-    return Object.entries(obj).reduce((fields: string[], [key, value]) => {
-      const currentPath = prefix ? `${prefix}.${key}` : key;
-
-      if (value && typeof value === "object" && !Array.isArray(value)) {
-        return [...fields, currentPath, ...getNestedFields(value, currentPath)];
-      }
-
-      return [...fields, currentPath];
-    }, []);
-  };
-
-  const getValueByPath = (obj: any, path: string) => {
-    return path.split(".").reduce((current, key) => current?.[key], obj);
-  };
-
-  const filterOutput = (output: any) => {
-    if (!output || !data.selectedFields?.length) return output;
-    const selectedField = data.selectedFields[0].field;
-
-    if (Array.isArray(output)) {
-      return output.map((item) => getValueByPath(item, selectedField));
-    } else if (typeof output === "object") {
-      return getValueByPath(output, selectedField);
-    }
-    return output;
-  };
-
   const [copied, setCopied] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleCopy = () => {
-    const outputText = JSON.stringify(filterOutput(data.output), null, 2);
+    const outputText = JSON.stringify(data.output, null, 2);
     navigator.clipboard.writeText(outputText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -201,23 +209,10 @@ export const ApiNode = ({ id, data }: ApiNodeProps) => {
               />
             </div>
             <div className="max-h-[200px] overflow-y-auto bg-muted/30 rounded-md p-2">
-              {filterFields(
-                getNestedFields(
-                  Array.isArray(data.output)
-                    ? data.output[0] || {}
-                    : data.output || {}
-                )
-              ).map((field) => {
+              {filterFields(getNestedFields(data.output)).map((field) => {
                 const isSelected = data.selectedFields?.[0]?.field === field;
-                const value = getValueByPath(
-                  Array.isArray(data.output) ? data.output[0] : data.output,
-                  field
-                );
-                const displayValue =
-                  typeof value === "object"
-                    ? "Object"
-                    : String(value).slice(0, 50) +
-                      (String(value).length > 50 ? "..." : "");
+                const value = getValueByPath(data.output, field);
+                const displayValue = getDisplayValue(value);
 
                 return (
                   <div
@@ -244,7 +239,7 @@ export const ApiNode = ({ id, data }: ApiNodeProps) => {
             </div>
           </div>
           <pre className="bg-muted p-2 rounded-md overflow-x-auto max-h-[200px] scrollbar-thin scrollbar-thumb-border scrollbar-track-background">
-            {JSON.stringify(filterOutput(data.output), null, 2)}
+            {JSON.stringify(data.output, null, 2)}
           </pre>
         </div>
       )}
@@ -264,36 +259,6 @@ interface CombinerNodeProps {
 }
 
 export const CombinerNode = ({ data }: CombinerNodeProps) => {
-  const getNestedFields = (obj: any, prefix = ""): string[] => {
-    if (!obj || typeof obj !== "object") return [];
-
-    return Object.entries(obj).reduce((fields: string[], [key, value]) => {
-      const currentPath = prefix ? `${prefix}.${key}` : key;
-
-      if (value && typeof value === "object" && !Array.isArray(value)) {
-        return [...fields, currentPath, ...getNestedFields(value, currentPath)];
-      }
-
-      return [...fields, currentPath];
-    }, []);
-  };
-
-  const getValueByPath = (obj: any, path: string) => {
-    return path.split(".").reduce((current, key) => current?.[key], obj);
-  };
-
-  const filterOutput = (output: any) => {
-    if (!output || !data.selectedFields?.length) return output;
-    const selectedField = data.selectedFields[0].field;
-
-    if (Array.isArray(output)) {
-      return output.map((item) => getValueByPath(item, selectedField));
-    } else if (typeof output === "object") {
-      return getValueByPath(output, selectedField);
-    }
-    return output;
-  };
-
   return (
     <div className="px-4 py-2 shadow-md rounded-md bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700">
       <div className="font-bold">JSON Combiner</div>
@@ -327,11 +292,7 @@ export const CombinerNode = ({ data }: CombinerNodeProps) => {
                     : data.combined,
                   field
                 );
-                const displayValue =
-                  typeof value === "object"
-                    ? "Object"
-                    : String(value).slice(0, 50) +
-                      (String(value).length > 50 ? "..." : "");
+                const displayValue = getDisplayValue(value);
 
                 return (
                   <div
@@ -363,10 +324,117 @@ export const CombinerNode = ({ data }: CombinerNodeProps) => {
         <div className="text-xs space-y-1">
           <pre className="bg-muted/30 p-2 rounded-md overflow-x-auto max-h-[100px] text-[10px]">
             {data.combined
-              ? JSON.stringify(filterOutput(data.combined), null, 2)
+              ? JSON.stringify(data.combined, null, 2)
               : "Connect both inputs"}
           </pre>
         </div>
+      </div>
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="output"
+        data-type="json"
+      />
+    </div>
+  );
+};
+
+interface JSONInputNodeData {
+  id: string;
+  jsonInput?: any;
+  inputJson?: any;
+  selectedFields?: Array<{ field: string; valueOnly: boolean }>;
+}
+
+interface JSONInputNodeProps {
+  data: JSONInputNodeData;
+}
+
+export const JSONInputNode = ({ data }: JSONInputNodeProps) => {
+  const [jsonText, setJsonText] = useState("");
+  const [error, setError] = useState("");
+  const [manualInput, setManualInput] = useState(true);
+
+  const handleJsonInput = (value: string) => {
+    try {
+      const parsed = JSON.parse(value);
+      setJsonText(value);
+      data.jsonInput = parsed;
+      setError("");
+      setManualInput(true);
+    } catch (e) {
+      setError("Invalid JSON");
+    }
+  };
+
+  useEffect(() => {
+    if (data.jsonInput && !manualInput) {
+      try {
+        const formattedJson = JSON.stringify(data.jsonInput, null, 2);
+        setJsonText(formattedJson);
+        setError("");
+      } catch (e) {
+        setError("Invalid JSON from input");
+      }
+    }
+  }, [data.jsonInput, manualInput]);
+
+  return (
+    <div className="px-4 py-2 shadow-md rounded-md bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700">
+      <div className="font-bold">JSON Input</div>
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="input"
+        data-type="json"
+        onConnect={() => setManualInput(false)}
+      />
+      <div className="space-y-2">
+        <div className="text-xs space-y-1">
+          <textarea
+            className="w-full h-20 p-2 text-xs rounded-md bg-muted/30"
+            placeholder="Enter JSON here..."
+            value={jsonText}
+            onChange={(e) => handleJsonInput(e.target.value)}
+            disabled={!manualInput}
+          />
+          {error && <div className="text-red-500 text-xs">{error}</div>}
+        </div>
+
+        {data.jsonInput && (
+          <div className="text-xs space-y-1">
+            <div className="font-medium text-foreground/70">Select fields:</div>
+            <div className="max-h-[100px] overflow-y-auto bg-muted/30 rounded-md p-2">
+              {getNestedFields(data.jsonInput).map((field) => {
+                const isSelected = data.selectedFields?.[0]?.field === field;
+                const value = getValueByPath(data.jsonInput, field);
+                const displayValue = getDisplayValue(value);
+
+                return (
+                  <div
+                    key={field}
+                    className="flex items-center gap-2 hover:bg-muted/20 p-1 rounded"
+                  >
+                    <label className="flex items-center gap-2 flex-1">
+                      <input
+                        type="radio"
+                        name="json-field-selection"
+                        checked={isSelected}
+                        onChange={() => {
+                          data.selectedFields = [{ field, valueOnly: false }];
+                        }}
+                      />
+                      <span className="flex-1">{field}</span>
+                      <span className="text-xs text-muted-foreground truncate max-w-[150px]">
+                        {displayValue}
+                      </span>
+                    </label>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
       <Handle
         type="source"

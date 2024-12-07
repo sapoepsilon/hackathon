@@ -18,6 +18,7 @@ interface FlowContextType {
   executeFlow: () => Promise<void>;
   addNode: (container: Deployment) => Promise<void>;
   addCombinerNode: () => void;
+  addJsonNode: () => void;
   updateCombinerNodes: () => void;
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
@@ -241,9 +242,42 @@ export const FlowProvider = ({ children }: FlowProviderProps) => {
     setNodes((nds) => [...nds, newNode]);
   };
 
+  const addJsonNode = () => {
+    const newNode = {
+      id: `json-${Date.now()}`,
+      type: 'jsonInput',
+      position: { x: 300, y: 100 },
+      data: { 
+        jsonInput: null,
+        selectedFields: [],
+      },
+    };
+    setNodes((nds) => [...nds, newNode]);
+  };
+
   const updateCombinerNodes = () => {
     let hasUpdates = false;
     const newNodes = nodes.map((node) => {
+      if (node.type === 'jsonInput') {
+        const inputEdge = edges.find((e) => e.target === node.id && e.targetHandle === 'input');
+        if (inputEdge) {
+          const sourceNode = nodes.find((n) => n.id === inputEdge.source);
+          if (sourceNode?.data?.output) {
+            if (JSON.stringify(node.data.jsonInput) !== JSON.stringify(sourceNode.data.output)) {
+              hasUpdates = true;
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  jsonInput: sourceNode.data.output,
+                },
+              };
+            }
+          }
+        }
+        return node;
+      }
+
       if (node.type !== 'combiner') return node;
 
       const input1Edge = edges.find((e) => e.target === node.id && e.targetHandle === 'input1');
@@ -297,10 +331,15 @@ export const FlowProvider = ({ children }: FlowProviderProps) => {
     executeFlow,
     addNode,
     addCombinerNode,
+    addJsonNode,
     updateCombinerNodes,
     setNodes,
     setEdges,
   };
 
-  return <FlowContext.Provider value={value}>{children}</FlowContext.Provider>;
+  return (
+    <FlowContext.Provider value={value}>
+      {children}
+    </FlowContext.Provider>
+  );
 };

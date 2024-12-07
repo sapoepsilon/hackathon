@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useTheme } from "next-themes";
 import { Node as NodeType } from "@xyflow/react";
 import { FlowProvider, useFlowContext } from "./flow/FlowProvider";
-import { ApiNode, CombinerNode } from "./flow/NodeTypes";
+import { ApiNode, CombinerNode, JSONInputNode } from "./flow/NodeTypes";
 import { AddNodeDialog, ApiDialog, JsonDialog } from "./flow/DialogComponents";
 import { FlowControls } from "./flow/FlowControls";
 
@@ -18,6 +18,7 @@ interface FlowCanvasProps {
 const nodeTypes = {
   api: (props: any) => <ApiNode {...props} />,
   combiner: CombinerNode,
+  jsonInput: JSONInputNode,
 };
 
 function FlowCanvasContent({
@@ -36,6 +37,7 @@ function FlowCanvasContent({
     executeFlow,
     addNode,
     addCombinerNode,
+    addJsonNode,
     updateCombinerNodes,
     setNodes,
     setEdges,
@@ -174,6 +176,7 @@ function FlowCanvasContent({
       <FlowControls
         onAddNode={() => setIsDialogOpen(true)}
         onAddCombiner={addCombinerNode}
+        onAddJson={addJsonNode}
         onExecuteFlow={executeFlow}
         isExecuting={isExecuting}
       />
