@@ -1,33 +1,30 @@
 "use client";
-
-import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { DockerContainersTable } from "../components/DockerContainersTable";
-import { DeploymentToast } from "@/components/DeploymentToast";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Navigation } from "@/components/Navigation";
-import { EditorTabs } from "@/components/EditorTabs";
+import { Card, CardContent } from "@/components/ui/card";
+import { DockerContainersTable } from "../components/DockerContainersTable";
+import { DeploymentToast } from "@/components/DeploymentToast";
 import { useDeployment } from "@/hooks/useDeployment";
 import { useContainers } from "@/hooks/useContainers";
 import { DataType, InputConfig } from "@/components/ui/deploy-dialog";
+import { useState } from "react";
+import AppSidebar from "@/components/appSideBar";
 
 export default function Home() {
   const [code, setCode] = useState(`// Write your Node.js code here
 const http = require('http');
-
 const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('Hello from your deployed container!');
 });
-
 server.listen(3000, () => {
   console.log('Server running on port 3000');
 });`);
+
   const { deploymentStatus, handleDeploy } = useDeployment();
   const { containers } = useContainers();
 
@@ -40,15 +37,14 @@ server.listen(3000, () => {
   };
 
   return (
-    <div className="h-screen">
+    <>
       <Sheet>
-        <Navigation
-          deploymentStatus={deploymentStatus}
+        <AppSidebar
           code={code}
+          onCodeChange={setCode}
+          deploymentStatus={deploymentStatus}
           onDeploy={handleDeployWithConfig}
         />
-        <EditorTabs code={code} onCodeChange={setCode} />
-
         <SheetContent style={{ maxWidth: "60vw" }}>
           <SheetHeader>
             <SheetTitle>Docker Containers</SheetTitle>
@@ -69,6 +65,6 @@ server.listen(3000, () => {
           type="destructive"
         />
       )}
-    </div>
+    </>
   );
 }

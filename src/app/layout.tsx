@@ -19,7 +19,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <head />
-      <body className={`${inter.className} min-h-screen bg-background text-foreground`}>
+      <body
+        className={`${inter.className} min-h-screen bg-background antialiased`}
+      >
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
