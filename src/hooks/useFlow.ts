@@ -10,18 +10,12 @@ import {
   addEdge,
 } from '@xyflow/react';
 
-interface ApiNodeData {
-  label: string;
-  deploymentUrl?: string;
-  containerId?: string;
-  type: 'api';
-}
-
 interface NodeData {
   label: string;
   type?: 'api';
   deploymentUrl?: string;
   containerId?: string;
+  method?: string
 }
 
 export function useFlow(defaultNodes: Node[], defaultEdges: Edge[]) {
@@ -61,9 +55,10 @@ export function useFlow(defaultNodes: Node[], defaultEdges: Edge[]) {
         type: nodeData?.type,
         deploymentUrl: nodeData?.deploymentUrl,
         containerId: nodeData?.containerId,
+        method: nodeData?.method
       },
     };
-    setNodes((nds) => [...nds, newNode]);
+    setNodes((nds: unknown) => [...nds, newNode]);
     return newNode;
   }, [nodes]);
 

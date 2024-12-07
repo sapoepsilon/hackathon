@@ -15,6 +15,18 @@ function getRandomPort(min = 3000, max = 9000) {
 }
 
 export async function POST(request: Request) {
+  // Add CORS headers
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+
+  // Handle OPTIONS request for CORS preflight
+  if (request.method === 'OPTIONS') {
+    return NextResponse.json({}, { headers: corsHeaders });
+  }
+
   try {
     const { code, inputs, outputs } = await request.json();
     const containerId = randomBytes(4).toString('hex');
@@ -75,12 +87,26 @@ CMD ["node", "index.js"]`);
       url,
       inputs,
       outputs
-    });
+    }, { headers: corsHeaders });
   } catch (error) {
     console.error('Deployment error:', error);
     return NextResponse.json({
       success: false,
       error: error || 'Failed to deploy container',
-    }, { status: 500 });
+    }, { status: 500, headers: corsHeaders });
   }
+}
+
+// Add OPTIONS handler for CORS preflight requests
+export async function OPTIONS() {
+  return NextResponse.json(
+    {},
+    {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      },
+    }
+  );
 }

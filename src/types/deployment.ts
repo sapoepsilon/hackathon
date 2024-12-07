@@ -1,4 +1,4 @@
-import { DataType, InputConfig } from "@/components/ui/deploy-dialog"
+import { DataType, InputConfig, method } from "@/components/ui/deploy-dialog"
 
 export interface Deployment {
   id?: string
@@ -8,4 +8,5 @@ export interface Deployment {
   inputs?: InputConfig[]
   outputs?: DataType
   created_at?: string
+  method?: method
 }

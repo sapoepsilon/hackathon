@@ -1,4 +1,4 @@
-import { ReactFlow, Background, Controls } from "@xyflow/react";
+import { ReactFlow, Background, Controls, Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "@/styles/flow.css";
 import { useFlow } from "../hooks/useFlow";
@@ -15,8 +15,8 @@ import {
 import { useEffect, useState } from "react";
 import { Deployment } from "@/types/deployment";
 import { supabase } from "@/lib/supabase";
-import { DockerContainer } from "@/types/docker";
 import { dockerContainer } from "@/types/dockerContainer";
+import { Input } from "./ui/input";
 
 interface FlowCanvasProps {
   height?: string;
@@ -32,6 +32,10 @@ export default function FlowCanvas({
   const { theme, systemTheme } = useTheme();
   const [containers, setContainers] = useState<Deployment[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [apiInput, setApiInput] = useState("");
+  const [apiOutput, setApiOutput] = useState<string | null>(null);
+  const [isApiDialogOpen, setIsApiDialogOpen] = useState(false);
 
   const currentTheme = theme === "system" ? systemTheme : theme;
 
@@ -58,9 +62,6 @@ export default function FlowCanvas({
       }
 
       const selectedContainer = data.containers.find((c: dockerContainer) => {
-        console.log(
-          `Docker: ${JSON.stringify(c)} Supabase ${JSON.stringify(container)}`
-        );
         return c.ID === container.container_id;
       });
 
@@ -68,7 +69,7 @@ export default function FlowCanvas({
         console.error("Container not found");
         return;
       }
-
+      console.log(`container method: ${container.method}`);
       await addNode({
         type: "api",
         label: container.url,
@@ -76,10 +77,44 @@ export default function FlowCanvas({
         deploymentUrl: `http://localhost:${
           selectedContainer.Ports.split(":")[1].split("->")[0]
         }`,
+        method: container.method,
       });
       setIsDialogOpen(false);
     } catch (error) {
       console.error("Error getting container URL:", error);
+    }
+  };
+
+  const handleNodeClick = (event: React.MouseEvent, node: Node) => {
+    if (node.data.type === "api") {
+      setSelectedNode(node);
+      setIsApiDialogOpen(true);
+    }
+  };
+
+  const handleApiCall = async () => {
+    if (!selectedNode?.data.deploymentUrl) return;
+
+    console.log("Calling API:", selectedNode.data);
+
+    try {
+      const response = await fetch('/api/proxy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: selectedNode.data.deploymentUrl,
+          method: selectedNode.data.method,
+          data: apiInput ? { input: apiInput } : {}
+        }),
+      });
+
+      const data = await response.json();
+      setApiOutput(JSON.stringify(data, null, 2));
+    } catch (error) {
+      console.error("Error calling API:", error);
+      setApiOutput("Error calling API: " + error);
     }
   };
 
@@ -119,6 +154,7 @@ export default function FlowCanvas({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onNodeClick={handleNodeClick}
         fitView
         proOptions={{ hideAttribution: true }}
         colorMode={currentTheme === "dark" ? "dark" : "light"}
@@ -127,6 +163,33 @@ export default function FlowCanvas({
         <Background gap={12} size={1} />
         <Controls />
       </ReactFlow>
+
+      <Dialog open={isApiDialogOpen} onOpenChange={setIsApiDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Call API Node</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <label>Input (optional)</label>
+              <Input
+                value={apiInput}
+                onChange={(e) => setApiInput(e.target.value)}
+                placeholder="Enter API input in JSON format"
+              />
+            </div>
+            <Button onClick={handleApiCall}>Call API</Button>
+            {apiOutput && (
+              <div className="grid gap-2">
+                <label>Output</label>
+                <pre className="bg-secondary p-4 rounded-lg overflow-auto max-h-[200px]">
+                  {apiOutput}
+                </pre>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

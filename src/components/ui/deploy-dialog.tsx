@@ -21,6 +21,7 @@ import { PlusCircle, Trash2 } from "lucide-react";
 
 const DATA_TYPES = ["string", "json", "array", "number", "boolean"] as const;
 export type DataType = (typeof DATA_TYPES)[number];
+export type method = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 
 export interface InputConfig {
   id: string;
@@ -28,7 +29,11 @@ export interface InputConfig {
 }
 
 interface DeployDialogProps {
-  onDeploy: (inputs: InputConfig[], output: DataType) => Promise<void>;
+  onDeploy: (
+    inputs: InputConfig[],
+    output: DataType,
+    method: method
+  ) => Promise<void>;
   trigger?: React.ReactNode;
 }
 
@@ -37,10 +42,11 @@ export function DeployDialog({ onDeploy, trigger }: DeployDialogProps) {
     { id: crypto.randomUUID(), type: "string" },
   ]);
   const [output, setOutput] = React.useState<DataType>("string");
+  const [method, setMethod] = React.useState<method>("GET");
   const [open, setOpen] = React.useState(false);
 
   const handleDeploy = async () => {
-    await onDeploy(inputs, output);
+    await onDeploy(inputs, output, method);
     setOpen(false);
   };
 
@@ -119,12 +125,30 @@ export function DeployDialog({ onDeploy, trigger }: DeployDialogProps) {
               Add Input
             </Button>
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="output" className="text-right">
-              Output Type
-            </Label>
+          <div className="flex flex-col gap-2">
+            <Label>Method</Label>
+            <Select
+              value={method}
+              onValueChange={(value) =>
+                setMethod(value as (typeof METHODS)[number])
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select method" />
+              </SelectTrigger>
+              <SelectContent>
+                {METHODS.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label>Output Type</Label>
             <Select value={output} onValueChange={setOutput}>
-              <SelectTrigger className="col-span-3">
+              <SelectTrigger>
                 <SelectValue placeholder="Select output type" />
               </SelectTrigger>
               <SelectContent>
@@ -144,3 +168,5 @@ export function DeployDialog({ onDeploy, trigger }: DeployDialogProps) {
     </Dialog>
   );
 }
+
+const METHODS = ["GET", "POST", "PUT", "DELETE"] as const;

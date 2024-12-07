@@ -6,6 +6,7 @@ create table if not exists public.deployments (
     url text not null,
     inputs JSONB DEFAULT '[]',
     outputs JSONB DEFAULT '[]',
+    method text DEFAULT null,
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
     updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
