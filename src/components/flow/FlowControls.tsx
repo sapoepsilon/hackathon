@@ -16,20 +16,19 @@ export const FlowControls = ({
 }: FlowControlsProps) => {
   return (
     <>
-      <div className="absolute top-4 right-4 z-10 flex gap-2">
-        <Button size="sm" onClick={onAddNode}>
+      <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+        <Button size="lg" className="w-[160px]" onClick={onAddNode}>
           <Plus className="mr-2 h-4 w-4" />
           Add Node
         </Button>
-        <Button onClick={onAddCombiner}>
+        <Button size="lg" className="w-[160px]" onClick={onAddCombiner}>
           Add Combiner
         </Button>
-      </div>
-      <div className="absolute bottom-4 right-4 z-10">
         <Button 
+          size="lg"
+          className="w-[160px]"
           onClick={onExecuteFlow}
           disabled={isExecuting}
-          size="lg"
         >
           {isExecuting ? "Executing..." : "Execute Flow"}
         </Button>
