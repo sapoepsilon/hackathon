@@ -1,14 +1,4 @@
-import {
-  ReactFlow,
-  Background,
-  Controls,
-  Node,
-  Edge,
-  Connection,
-  Handle,
-  Position,
-  Panel,
-} from "@xyflow/react";
+import { ReactFlow, Background, Controls } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "@/styles/flow.css";
 import { useEffect, useState, useMemo } from "react";
@@ -81,35 +71,6 @@ function FlowCanvasContent({
     if (!selectedNode?.id) return;
 
     try {
-      // Create a response node
-      const responseNode: NodeType = {
-        id: `response-${Date.now()}`,
-        type: "response",
-        position: {
-          x: selectedNode.position.x + 200,
-          y: selectedNode.position.y,
-        },
-        data: {
-          type: "response",
-          label: "Response",
-          output: null,
-          outputType: "json",
-        },
-      };
-
-      // Add response node first
-      setNodes((nds) => [...nds, responseNode]);
-
-      // Connect API node to response node
-      setEdges((eds) => [
-        ...eds,
-        {
-          id: `${selectedNode.id}-${responseNode.id}`,
-          source: selectedNode.id,
-          target: responseNode.id,
-        },
-      ]);
-
       // Update the selected node's input values
       setNodes((nds) =>
         nds.map((n) =>
@@ -163,35 +124,6 @@ function FlowCanvasContent({
                 return;
               }
 
-              // Create a response node
-              const responseNode: NodeType = {
-                id: `response-${Date.now()}`,
-                type: "response",
-                position: {
-                  x: node.position.x + 200,
-                  y: node.position.y,
-                },
-                data: {
-                  type: "response",
-                  label: "Response",
-                  output: null,
-                  outputType: "json",
-                },
-              };
-
-              // Add response node first
-              setNodes((nds) => [...nds, responseNode]);
-
-              // Connect API node to response node
-              setEdges((eds) => [
-                ...eds,
-                {
-                  id: `${id}-${responseNode.id}`,
-                  source: id,
-                  target: responseNode.id,
-                },
-              ]);
-
               // Execute the API call
               executeApiNode(id);
             }}
@@ -199,23 +131,8 @@ function FlowCanvasContent({
         );
       },
       combiner: CombinerNode,
-      response: (props: any) => (
-        <div className="px-4 py-2 shadow-md rounded-md bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700">
-          <div className="font-bold">Response</div>
-          <div className="text-sm mt-2 max-w-[200px] overflow-hidden text-ellipsis">
-            {props.data.output ? (
-              <pre className="whitespace-pre-wrap">
-                {JSON.stringify(props.data.output, null, 2)}
-              </pre>
-            ) : (
-              "Waiting for response..."
-            )}
-          </div>
-          <Handle type="source" position={Position.Right} id="output" />
-        </div>
-      ),
     }),
-    [isExecuting, nodes, executeApiNode, setNodes, setEdges]
+    [isExecuting, nodes, executeApiNode]
   );
 
   const getJsonPaths = (obj: any, parentPath = ""): string[] => {
