@@ -15,7 +15,10 @@ interface NodeData {
   type?: 'api';
   deploymentUrl?: string;
   containerId?: string;
-  method?: string
+  method?: string;
+  output?: unknown;  // Store API output
+  inputType?: string;  // Type of input this node accepts
+  outputType?: string;  // Type of output this node produces
 }
 
 export function useFlow(defaultNodes: Node[], defaultEdges: Edge[]) {
@@ -38,9 +41,19 @@ export function useFlow(defaultNodes: Node[], defaultEdges: Edge[]) {
 
   const onConnect = useCallback(
     (params: Connection) => {
-      setEdges((eds) => addEdge(params, eds));
+      // Get source and target nodes
+      const sourceNode = nodes.find(node => node.id === params.source);
+      const targetNode = nodes.find(node => node.id === params.target);
+      
+      // Check if the output type matches the input type
+      if (sourceNode?.data.outputType && targetNode?.data.inputType &&
+          sourceNode.data.outputType === targetNode.data.inputType) {
+        setEdges((eds) => addEdge(params, eds));
+      } else {
+        console.warn('Connection invalid: input/output types do not match');
+      }
     },
-    []
+    [nodes]
   );
 
   const addNode = useCallback(async (nodeData?: Partial<NodeData>) => {
@@ -55,12 +68,25 @@ export function useFlow(defaultNodes: Node[], defaultEdges: Edge[]) {
         type: nodeData?.type,
         deploymentUrl: nodeData?.deploymentUrl,
         containerId: nodeData?.containerId,
-        method: nodeData?.method
+        method: nodeData?.method,
+        output: nodeData?.output,
+        inputType: nodeData?.inputType,
+        outputType: nodeData?.outputType
       },
     };
     setNodes((nds: unknown) => [...nds, newNode]);
     return newNode;
   }, [nodes]);
+
+  const updateNode = useCallback((nodeId: string, updates: Partial<NodeData>) => {
+    setNodes(nds => 
+      nds.map(node => 
+        node.id === nodeId 
+          ? { ...node, data: { ...node.data, ...updates } }
+          : node
+      )
+    );
+  }, [setNodes]);
 
   return {
     nodes,
@@ -69,5 +95,7 @@ export function useFlow(defaultNodes: Node[], defaultEdges: Edge[]) {
     onEdgesChange,
     onConnect,
     addNode,
+    setNodes,
+    updateNode,
   };
 }

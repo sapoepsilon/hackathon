@@ -17,6 +17,13 @@ import { Deployment } from "@/types/deployment";
 import { supabase } from "@/lib/supabase";
 import { dockerContainer } from "@/types/dockerContainer";
 import { Input } from "./ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface FlowCanvasProps {
   height?: string;
@@ -27,13 +34,23 @@ export default function FlowCanvas({
   height = "75vh",
   width = "100%",
 }: FlowCanvasProps): JSX.Element {
-  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, addNode } =
-    useFlow([], []);
+  const {
+    nodes,
+    edges,
+    onNodesChange,
+    onEdgesChange,
+    onConnect,
+    addNode,
+    updateNode,
+  } = useFlow([], []);
   const { theme, systemTheme } = useTheme();
   const [containers, setContainers] = useState<Deployment[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [apiInput, setApiInput] = useState("");
+  const [inputType, setInputType] = useState<
+    "string" | "number" | "json" | "array-number" | "array-string"
+  >("string");
   const [apiOutput, setApiOutput] = useState<string | null>(null);
   const [isApiDialogOpen, setIsApiDialogOpen] = useState(false);
 
@@ -72,7 +89,7 @@ export default function FlowCanvas({
       console.log(`container method: ${container.method}`);
       await addNode({
         type: "api",
-        label: container.url,
+        label: `${container.method} ${container.url}`,
         containerId: container.container_id,
         deploymentUrl: `http://localhost:${
           selectedContainer.Ports.split(":")[1].split("->")[0]
@@ -98,20 +115,57 @@ export default function FlowCanvas({
     console.log("Calling API:", selectedNode.data);
 
     try {
-      const response = await fetch('/api/proxy', {
-        method: 'POST',
+      const response = await fetch("/api/proxy", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           url: selectedNode.data.deploymentUrl,
           method: selectedNode.data.method,
-          data: apiInput ? { input: apiInput } : {}
+          data: {
+            input: apiInput
+              ? inputType === "json"
+                ? JSON.parse(apiInput)
+                : inputType === "array-number" || inputType === "array-string"
+                ? (() => {
+                    try {
+                      const parsed = JSON.parse(apiInput);
+                      if (!Array.isArray(parsed)) {
+                        throw new Error("Input must be an array");
+                      }
+                      if (inputType === "array-number") {
+                        if (!parsed.every((item) => typeof item === "number")) {
+                          throw new Error("All array items must be numbers");
+                        }
+                      } else if (inputType === "array-string") {
+                        if (!parsed.every((item) => typeof item === "string")) {
+                          throw new Error("All array items must be strings");
+                        }
+                      }
+                      return parsed;
+                    } catch (e) {
+                      throw new Error(
+                        e instanceof Error ? e.message : "Invalid array format"
+                      );
+                    }
+                  })()
+                : inputType === "number"
+                ? Number(apiInput)
+                : apiInput
+              : {},
+          },
         }),
       });
 
       const data = await response.json();
       setApiOutput(JSON.stringify(data, null, 2));
+
+      // Update the node data with the output using updateNode
+      updateNode(selectedNode.id, {
+        output: data,
+        outputType: typeof data === "object" ? "json" : typeof data,
+      });
     } catch (error) {
       console.error("Error calling API:", error);
       setApiOutput("Error calling API: " + error);
@@ -171,11 +225,54 @@ export default function FlowCanvas({
           </DialogHeader>
           <div className="grid gap-4">
             <div className="grid gap-2">
+              <label>Input Type</label>
+              <Select
+                value={inputType}
+                onValueChange={(
+                  value:
+                    | "string"
+                    | "number"
+                    | "json"
+                    | "array-number"
+                    | "array-string"
+                ) => setInputType(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select input type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="string">String</SelectItem>
+                  <SelectItem value="number">Number</SelectItem>
+                  <SelectItem value="json">JSON</SelectItem>
+                  <SelectItem value="array-number">Array of Numbers</SelectItem>
+                  <SelectItem value="array-string">Array of Strings</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
               <label>Input (optional)</label>
               <Input
                 value={apiInput}
-                onChange={(e) => setApiInput(e.target.value)}
-                placeholder="Enter API input in JSON format"
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (inputType === "number") {
+                    if (value === "" || !isNaN(Number(value))) {
+                      setApiInput(value);
+                    }
+                  } else {
+                    setApiInput(value);
+                  }
+                }}
+                type={inputType === "number" ? "number" : "text"}
+                placeholder={`Enter ${
+                  inputType === "json"
+                    ? "JSON input"
+                    : inputType === "array-number"
+                    ? "numbers (e.g., [1,2,3])"
+                    : inputType === "array-string"
+                    ? "strings (e.g., ['a','b','c'])"
+                    : inputType
+                } input`}
               />
             </div>
             <Button onClick={handleApiCall}>Call API</Button>
