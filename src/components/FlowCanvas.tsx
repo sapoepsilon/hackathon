@@ -3,7 +3,9 @@
 import { ReactFlow, Background, Controls } from "@xyflow/react";
 import { Node, Edge } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import "@/styles/flow.css";
 import { useFlow } from "../hooks/useFlow";
+import { useTheme } from "next-themes";
 
 const initialNodes: Node[] = [
   {
@@ -31,6 +33,7 @@ export default function FlowCanvas({ height = "75vh", width = "100%" }: FlowCanv
     initialNodes,
     initialEdges
   );
+  const { theme } = useTheme();
 
   return (
     <div style={{ width, height, position: "relative" }}>
@@ -41,6 +44,8 @@ export default function FlowCanvas({ height = "75vh", width = "100%" }: FlowCanv
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         fitView
+        proOptions={{ hideAttribution: true }}
+        className={theme === 'dark' ? 'react-flow-dark' : 'react-flow-light'}
       >
         <Background />
         <Controls />

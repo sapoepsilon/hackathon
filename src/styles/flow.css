@@ -1,0 +1,72 @@
+.react-flow-dark {
+  background-color: #1a1b1e;
+  color: #ffffff;
+}
+
+.react-flow-dark .react-flow__node {
+  background-color: #2c2d30;
+  border-color: #3f3f3f;
+  color: #ffffff;
+}
+
+.react-flow-dark .react-flow__handle {
+  background-color: #4a4a4a;
+}
+
+.react-flow-dark .react-flow__edge path {
+  stroke: #4a4a4a;
+}
+
+.react-flow-dark .react-flow__controls {
+  background-color: #2c2d30;
+  border-color: #3f3f3f;
+}
+
+.react-flow-dark .react-flow__controls button {
+  background-color: #2c2d30;
+  border-color: #3f3f3f;
+  color: #ffffff;
+}
+
+.react-flow-dark .react-flow__controls button:hover {
+  background-color: #3f3f3f;
+}
+
+.react-flow-dark .react-flow__attribution {
+  background-color: #2c2d30;
+  color: #ffffff;
+}
+
+.react-flow-light {
+  background-color: #ffffff;
+  color: #000000;
+}
+
+.react-flow-light .react-flow__node {
+  background-color: #f8f8f8;
+  border-color: #e0e0e0;
+  color: #000000;
+}
+
+.react-flow-light .react-flow__handle {
+  background-color: #555555;
+}
+
+.react-flow-light .react-flow__edge path {
+  stroke: #555555;
+}
+
+.react-flow-light .react-flow__controls {
+  background-color: #ffffff;
+  border-color: #e0e0e0;
+}
+
+.react-flow-light .react-flow__controls button {
+  background-color: #ffffff;
+  border-color: #e0e0e0;
+  color: #000000;
+}
+
+.react-flow-light .react-flow__controls button:hover {
+  background-color: #f0f0f0;
+}
