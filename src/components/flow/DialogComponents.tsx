@@ -1,5 +1,16 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Deployment } from "@/types/deployment";
@@ -11,7 +22,12 @@ interface AddNodeDialogProps {
   onContainerSelect: (container: Deployment) => void;
 }
 
-export const AddNodeDialog = ({ isOpen, onOpenChange, containers, onContainerSelect }: AddNodeDialogProps) => (
+export const AddNodeDialog = ({
+  isOpen,
+  onOpenChange,
+  containers,
+  onContainerSelect,
+}: AddNodeDialogProps) => (
   <Dialog open={isOpen} onOpenChange={onOpenChange}>
     <DialogContent>
       <DialogHeader>
@@ -36,7 +52,9 @@ interface ApiDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   inputType: "string" | "number" | "json" | "array-number" | "array-string";
-  onInputTypeChange: (value: "string" | "number" | "json" | "array-number" | "array-string") => void;
+  onInputTypeChange: (
+    value: "string" | "number" | "json" | "array-number" | "array-string"
+  ) => void;
   apiInput: string;
   onApiInputChange: (value: string) => void;
   onApiCall: () => void;

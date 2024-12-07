@@ -219,17 +219,6 @@ function FlowCanvasContent({
         containers={containers}
         onContainerSelect={addNode}
       />
-
-      <ApiDialog
-        isOpen={isApiDialogOpen}
-        onOpenChange={setIsApiDialogOpen}
-        inputType={inputType}
-        onInputTypeChange={setInputType}
-        apiInput={apiInput}
-        onApiInputChange={setApiInput}
-        onApiCall={handleApiCall}
-      />
-
       <JsonDialog
         isOpen={isJsonDialogOpen}
         onOpenChange={setIsJsonDialogOpen}

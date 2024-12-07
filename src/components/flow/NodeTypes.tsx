@@ -1,5 +1,9 @@
 import { Handle, Position } from "@xyflow/react";
 import { Button } from "../ui/button";
+import { Copy, Check, Search } from "lucide-react";
+import { useState } from "react";
+import { Input } from "../ui/input";
+import { ApiDialog } from "./DialogComponents";
 
 interface ApiNodeData {
   id: string;
@@ -25,65 +29,102 @@ interface ApiNodeProps {
 export const ApiNode = ({ id, data, isExecuting, onExecute }: ApiNodeProps) => {
   console.log("ApiNode props:", { id, data, isExecuting }); // Debug log
 
+  const [isApiDialogOpen, setIsApiDialogOpen] = useState(false);
+  const [inputType, setInputType] = useState("");
+  const [apiInput, setApiInput] = useState("");
+
+  const handleApiCall = () => {
+    // Handle API call logic here
+    setIsApiDialogOpen(false);
+  };
+
   const handleExecute = (e: React.MouseEvent) => {
     e.stopPropagation();
     console.log("Execute clicked for node:", id); // Debug log
     onExecute(id);
   };
 
+  const getNestedFields = (obj: any, prefix = ""): string[] => {
+    if (!obj || typeof obj !== "object") return [];
+
+    return Object.entries(obj).reduce((fields: string[], [key, value]) => {
+      const currentPath = prefix ? `${prefix}.${key}` : key;
+
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        return [...fields, currentPath, ...getNestedFields(value, currentPath)];
+      }
+
+      return [...fields, currentPath];
+    }, []);
+  };
+
+  const getValueByPath = (obj: any, path: string) => {
+    return path.split(".").reduce((current, key) => current?.[key], obj);
+  };
+
   const filterOutput = (output: any) => {
     if (!output || !data.selectedFields?.length) return output;
+    const selectedField = data.selectedFields[0].field;
 
     if (Array.isArray(output)) {
-      return output.map((item) => {
-        if (data.selectedFields?.every((f) => f.valueOnly)) {
-          // If all selected fields are value-only, return array of values
-          return data.selectedFields.map((f) => item[f.field]);
-        }
-        const filtered: any = {};
-        data.selectedFields?.forEach(({ field, valueOnly }) => {
-          if (field in item) {
-            if (valueOnly) {
-              return item[field];
-            }
-            filtered[field] = item[field];
-          }
-        });
-        return filtered;
-      });
+      return output.map((item) => getValueByPath(item, selectedField));
     } else if (typeof output === "object") {
-      if (data.selectedFields?.every((f) => f.valueOnly)) {
-        // If all selected fields are value-only, return array of values
-        return data.selectedFields.map((f) => output[f.field]);
-      }
-      const filtered: any = {};
-      data.selectedFields?.forEach(({ field, valueOnly }) => {
-        if (field in output) {
-          if (valueOnly && data.selectedFields?.length === 1) {
-            return output[field];
-          }
-          filtered[field] = output[field];
-        }
-      });
-      return filtered;
+      return getValueByPath(output, selectedField);
     }
     return output;
   };
 
+  const [copied, setCopied] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleCopy = () => {
+    const outputText = JSON.stringify(filterOutput(data.output), null, 2);
+    navigator.clipboard.writeText(outputText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const filterFields = (fields: string[]) => {
+    if (!searchQuery) return fields;
+    return fields.filter((field) =>
+      field.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  };
+
   return (
-    <div className="relative p-4 shadow-lg rounded-lg bg-background border border-border min-w-[280px] max-w-[400px]">
+    <div className="relative p-4 shadow-lg rounded-lg bg-background border border-border min-w-[320px] max-w-[500px]">
       <div className="flex items-center justify-between gap-4 mb-4 relative z-10">
         <div className="font-bold text-sm truncate">{data.label}</div>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleExecute}
-          disabled={isExecuting}
-          className="shrink-0"
-        >
-          {isExecuting ? "Running..." : "Run"}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setIsApiDialogOpen(true)}
+            className="shrink-0"
+          >
+            API
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExecute}
+            disabled={isExecuting}
+            className="shrink-0"
+          >
+            {isExecuting ? "Running..." : "Run"}
+          </Button>
+        </div>
       </div>
+
+      <ApiDialog
+        isOpen={isApiDialogOpen}
+        onOpenChange={setIsApiDialogOpen}
+        inputType={inputType}
+        onInputTypeChange={setInputType}
+        apiInput={apiInput}
+        onApiInputChange={setApiInput}
+        onApiCall={handleApiCall}
+      />
 
       {/* Input handles */}
       <div className="absolute -left-3 top-0 bottom-0 flex flex-col justify-around">
@@ -137,18 +178,51 @@ export const ApiNode = ({ id, data, isExecuting, onExecute }: ApiNodeProps) => {
       {/* Display output if any */}
       {data.output && (
         <div className="mt-4 text-xs space-y-1">
-          <div className="font-semibold text-foreground/80">Output:</div>
+          <div className="font-semibold text-foreground/80 flex items-center justify-between">
+            <span>Output:</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={handleCopy}
+            >
+              {copied ? (
+                <Check className="h-3 w-3" />
+              ) : (
+                <Copy className="h-3 w-3" />
+              )}
+            </Button>
+          </div>
           <div className="mb-2 space-y-1">
             <div className="font-medium text-foreground/70">Select fields:</div>
-            <div className="max-h-[100px] overflow-y-auto bg-muted/30 rounded-md p-2">
-              {Object.keys(
-                Array.isArray(data.output)
-                  ? data.output[0] || {}
-                  : data.output || {}
+            <div className="relative">
+              <Search className="absolute left-2 top-2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search fields..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 h-8 text-xs"
+              />
+            </div>
+            <div className="max-h-[200px] overflow-y-auto bg-muted/30 rounded-md p-2">
+              {filterFields(
+                getNestedFields(
+                  Array.isArray(data.output)
+                    ? data.output[0] || {}
+                    : data.output || {}
+                )
               ).map((field) => {
-                const fieldConfig = data.selectedFields?.find(
-                  (f) => f.field === field
+                const isSelected = data.selectedFields?.[0]?.field === field;
+                const value = getValueByPath(
+                  Array.isArray(data.output) ? data.output[0] : data.output,
+                  field
                 );
+                const displayValue =
+                  typeof value === "object"
+                    ? "Object"
+                    : String(value).slice(0, 50) +
+                      (String(value).length > 50 ? "..." : "");
+
                 return (
                   <div
                     key={field}
@@ -156,42 +230,18 @@ export const ApiNode = ({ id, data, isExecuting, onExecute }: ApiNodeProps) => {
                   >
                     <label className="flex items-center gap-2 flex-1">
                       <input
-                        type="checkbox"
-                        className="rounded"
-                        checked={!!fieldConfig}
-                        onChange={(e) => {
-                          const newFields = e.target.checked
-                            ? [
-                                ...(data.selectedFields || []),
-                                { field, valueOnly: false },
-                              ]
-                            : (data.selectedFields || []).filter(
-                                (f) => f.field !== field
-                              );
-                          data.selectedFields = newFields;
+                        type="radio"
+                        name={`field-selection-${id}`}
+                        checked={isSelected}
+                        onChange={() => {
+                          data.selectedFields = [{ field, valueOnly: false }];
                         }}
                       />
-                      <span>{field}</span>
+                      <span className="flex-1">{field}</span>
+                      <span className="text-xs text-muted-foreground truncate max-w-[150px]">
+                        {displayValue}
+                      </span>
                     </label>
-                    {fieldConfig && (
-                      <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                        <input
-                          type="checkbox"
-                          className="rounded scale-75"
-                          checked={fieldConfig.valueOnly}
-                          onChange={(e) => {
-                            const newFields = (data.selectedFields || []).map(
-                              (f) =>
-                                f.field === field
-                                  ? { ...f, valueOnly: e.target.checked }
-                                  : f
-                            );
-                            data.selectedFields = newFields;
-                          }}
-                        />
-                        value only
-                      </label>
-                    )}
                   </div>
                 );
               })}
@@ -218,39 +268,32 @@ interface CombinerNodeProps {
 }
 
 export const CombinerNode = ({ data }: CombinerNodeProps) => {
+  const getNestedFields = (obj: any, prefix = ""): string[] => {
+    if (!obj || typeof obj !== "object") return [];
+
+    return Object.entries(obj).reduce((fields: string[], [key, value]) => {
+      const currentPath = prefix ? `${prefix}.${key}` : key;
+
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        return [...fields, currentPath, ...getNestedFields(value, currentPath)];
+      }
+
+      return [...fields, currentPath];
+    }, []);
+  };
+
+  const getValueByPath = (obj: any, path: string) => {
+    return path.split(".").reduce((current, key) => current?.[key], obj);
+  };
+
   const filterOutput = (output: any) => {
     if (!output || !data.selectedFields?.length) return output;
+    const selectedField = data.selectedFields[0].field;
 
     if (Array.isArray(output)) {
-      return output.map((item) => {
-        if (data.selectedFields?.every((f) => f.valueOnly)) {
-          return data.selectedFields.map((f) => item[f.field]);
-        }
-        const filtered: any = {};
-        data.selectedFields?.forEach(({ field, valueOnly }) => {
-          if (field in item) {
-            if (valueOnly) {
-              return item[field];
-            }
-            filtered[field] = item[field];
-          }
-        });
-        return filtered;
-      });
+      return output.map((item) => getValueByPath(item, selectedField));
     } else if (typeof output === "object") {
-      if (data.selectedFields?.every((f) => f.valueOnly)) {
-        return data.selectedFields.map((f) => output[f.field]);
-      }
-      const filtered: any = {};
-      data.selectedFields?.forEach(({ field, valueOnly }) => {
-        if (field in output) {
-          if (valueOnly && data.selectedFields?.length === 1) {
-            return output[field];
-          }
-          filtered[field] = output[field];
-        }
-      });
-      return filtered;
+      return getValueByPath(output, selectedField);
     }
     return output;
   };
@@ -276,14 +319,24 @@ export const CombinerNode = ({ data }: CombinerNodeProps) => {
           <div className="text-xs space-y-1">
             <div className="font-medium text-foreground/70">Select fields:</div>
             <div className="max-h-[100px] overflow-y-auto bg-muted/30 rounded-md p-2">
-              {Object.keys(
+              {getNestedFields(
                 Array.isArray(data.combined)
                   ? data.combined[0] || {}
                   : data.combined || {}
               ).map((field) => {
-                const fieldConfig = data.selectedFields?.find(
-                  (f) => f.field === field
+                const isSelected = data.selectedFields?.[0]?.field === field;
+                const value = getValueByPath(
+                  Array.isArray(data.combined)
+                    ? data.combined[0]
+                    : data.combined,
+                  field
                 );
+                const displayValue =
+                  typeof value === "object"
+                    ? "Object"
+                    : String(value).slice(0, 50) +
+                      (String(value).length > 50 ? "..." : "");
+
                 return (
                   <div
                     key={field}
@@ -291,42 +344,18 @@ export const CombinerNode = ({ data }: CombinerNodeProps) => {
                   >
                     <label className="flex items-center gap-2 flex-1">
                       <input
-                        type="checkbox"
-                        className="rounded"
-                        checked={!!fieldConfig}
-                        onChange={(e) => {
-                          const newFields = e.target.checked
-                            ? [
-                                ...(data.selectedFields || []),
-                                { field, valueOnly: false },
-                              ]
-                            : (data.selectedFields || []).filter(
-                                (f) => f.field !== field
-                              );
-                          data.selectedFields = newFields;
+                        type="radio"
+                        name={`field-selection`}
+                        checked={isSelected}
+                        onChange={() => {
+                          data.selectedFields = [{ field, valueOnly: false }];
                         }}
                       />
-                      <span>{field}</span>
+                      <span className="flex-1">{field}</span>
+                      <span className="text-xs text-muted-foreground truncate max-w-[150px]">
+                        {displayValue}
+                      </span>
                     </label>
-                    {fieldConfig && (
-                      <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                        <input
-                          type="checkbox"
-                          className="rounded scale-75"
-                          checked={fieldConfig.valueOnly}
-                          onChange={(e) => {
-                            const newFields = (data.selectedFields || []).map(
-                              (f) =>
-                                f.field === field
-                                  ? { ...f, valueOnly: e.target.checked }
-                                  : f
-                            );
-                            data.selectedFields = newFields;
-                          }}
-                        />
-                        value only
-                      </label>
-                    )}
                   </div>
                 );
               })}
