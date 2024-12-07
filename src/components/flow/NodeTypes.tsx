@@ -1,8 +1,7 @@
 import { Handle, Position } from "@xyflow/react";
 import { Button } from "../ui/button";
-import { Copy, Check, Search } from "lucide-react";
+import { Copy, Check } from "lucide-react";
 import { useState, useEffect } from "react";
-import { Input } from "../ui/input";
 import { ApiDialog } from "./DialogComponents";
 import { useFlowContext } from "./FlowProvider";
 
@@ -419,16 +418,6 @@ export const JSONInputNode = ({ data }: JSONInputNodeProps) => {
             {isStringMode ? "String Mode" : "JSON Mode"}
           </Button>
         </div>
-        <div className="text-xs space-y-1">
-          <textarea
-            className="w-full h-20 p-2 text-xs rounded-md bg-muted/30"
-            placeholder="Enter JSON here..."
-            value={jsonText}
-            onChange={(e) => handleJsonInput(e.target.value)}
-            disabled={!manualInput}
-          />
-          {error && <div className="text-red-500 text-xs">{error}</div>}
-        </div>
 
         {data.jsonInput && (
           <div className="text-xs space-y-1">
@@ -507,7 +496,8 @@ export const GroupNode = ({ data }: GroupNodeProps) => {
   // Get all connections to and from the group's child nodes
   const groupConnections = edges.filter(
     (edge) =>
-      data.childNodes.includes(edge.source) || data.childNodes.includes(edge.target)
+      data.childNodes.includes(edge.source) ||
+      data.childNodes.includes(edge.target)
   );
 
   // Get external nodes that connect to this group
@@ -535,7 +525,9 @@ export const GroupNode = ({ data }: GroupNodeProps) => {
   };
 
   const toggleExpand = () => {
-    const groupId = nodes.find((n) => n.type === "group" && n.data.childNodes === data.childNodes)?.id;
+    const groupId = nodes.find(
+      (n) => n.type === "group" && n.data.childNodes === data.childNodes
+    )?.id;
 
     if (data.isExpanded) {
       // Collapsing: Hide child nodes and restore group edges
@@ -549,8 +541,10 @@ export const GroupNode = ({ data }: GroupNodeProps) => {
       // Remove original edges and add group edges
       const externalConnections = data.originalEdges.filter(
         (edge) =>
-          (data.childNodes.includes(edge.source) && !data.childNodes.includes(edge.target)) ||
-          (!data.childNodes.includes(edge.source) && data.childNodes.includes(edge.target))
+          (data.childNodes.includes(edge.source) &&
+            !data.childNodes.includes(edge.target)) ||
+          (!data.childNodes.includes(edge.source) &&
+            data.childNodes.includes(edge.target))
       );
 
       const groupEdges = externalConnections.map((edge) => {
@@ -565,7 +559,9 @@ export const GroupNode = ({ data }: GroupNodeProps) => {
       });
 
       setEdges((prevEdges) => [
-        ...prevEdges.filter((edge) => !data.originalEdges.some((oe) => oe.id === edge.id)),
+        ...prevEdges.filter(
+          (edge) => !data.originalEdges.some((oe) => oe.id === edge.id)
+        ),
         ...groupEdges,
       ]);
     } else {
@@ -579,7 +575,9 @@ export const GroupNode = ({ data }: GroupNodeProps) => {
 
       // Remove group edges and restore original edges
       setEdges((prevEdges) => [
-        ...prevEdges.filter((edge) => !(edge.source === groupId || edge.target === groupId)),
+        ...prevEdges.filter(
+          (edge) => !(edge.source === groupId || edge.target === groupId)
+        ),
         ...data.originalEdges,
       ]);
     }
