@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { code, inputs, outputs } = await request.json();
+    const { code, inputs, outputs, method } = await request.json();
     const containerId = randomBytes(4).toString('hex');
     const port = getRandomPort();
 
@@ -69,6 +69,7 @@ CMD ["node", "index.js"]`);
       url,
       inputs: inputs || [], // Store inputs array if provided, empty array if not
       outputs: outputs || '', // Store output if provided, empty string if not
+      method,
       created_at: new Date().toISOString(),
     };
 

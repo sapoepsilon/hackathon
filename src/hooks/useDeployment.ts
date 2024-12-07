@@ -7,7 +7,7 @@ export function useDeployment() {
   const [deploymentStatus, setDeploymentStatus] = useState("idle");
   const [containerDetails, setContainerDetails] = useState<{ containerId: string; url: string } | null>(null);
 
-  const handleDeploy = async (code: string, inputs: InputConfig[], outputs: DataType) => {
+  const handleDeploy = async (code: string, inputs: InputConfig[], outputs: DataType, method: string) => {
     try {
       setDeploymentStatus("deploying");
       toast({
@@ -19,10 +19,10 @@ export function useDeployment() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ code, inputs, outputs }),
+        body: JSON.stringify({ code, inputs, outputs, method }),
       });
 
-      const data = await response.json();
+      const data = await response.json(); 
 
       if (data.success) {
         setDeploymentStatus("deployed");

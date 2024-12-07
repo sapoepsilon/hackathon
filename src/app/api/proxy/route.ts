@@ -9,10 +9,11 @@ export async function POST(request: Request) {
 
   try {
     const response = await fetch(targetUrl, {
-      method:'GET',
+      method: method || 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
+      ...((method && !['GET', 'HEAD'].includes(method) && data) && { body: JSON.stringify(data) }),
     })
 
     const contentType = response.headers.get('content-type')

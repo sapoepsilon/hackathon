@@ -33,9 +33,10 @@ server.listen(3000, () => {
 
   const handleDeployWithConfig = async (
     input: InputConfig[],
-    output: DataType
+    output: DataType,
+    method: string
   ) => {
-    await handleDeploy(code, input, output);
+    await handleDeploy(code, input, output, method);
   };
 
   return (

@@ -17,7 +17,11 @@ import {
 interface NavigationProps {
   deploymentStatus: string;
   code: string;
-  onDeploy: (inputs: InputConfig[], output: DataType) => Promise<void>;
+  onDeploy: (
+    inputs: InputConfig[],
+    output: DataType,
+    method: string
+  ) => Promise<void>;
 }
 
 export function Navigation({

@@ -38,9 +38,7 @@ interface DeployDialogProps {
 }
 
 export function DeployDialog({ onDeploy, trigger }: DeployDialogProps) {
-  const [inputs, setInputs] = React.useState<InputConfig[]>([
-    { id: crypto.randomUUID(), type: "string" },
-  ]);
+  const [inputs, setInputs] = React.useState<InputConfig[]>([]);
   const [output, setOutput] = React.useState<DataType>("string");
   const [method, setMethod] = React.useState<method>("GET");
   const [open, setOpen] = React.useState(false);
@@ -55,9 +53,7 @@ export function DeployDialog({ onDeploy, trigger }: DeployDialogProps) {
   };
 
   const removeInput = (id: string) => {
-    if (inputs.length > 1) {
-      setInputs(inputs.filter((input) => input.id !== id));
-    }
+    setInputs(inputs.filter((input) => input.id !== id));
   };
 
   const updateInputType = (id: string, type: DataType) => {
