@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, Send } from "lucide-react";
-import { onUpdateCode, onStreamStart, onStreamEnd } from "@/lib/types";
-import { cn } from "@/lib/utils";
 
 interface AIAssistantProps {
   onUpdateCode?: (newCode: string) => void;
