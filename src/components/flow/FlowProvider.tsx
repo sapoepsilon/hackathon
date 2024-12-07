@@ -68,7 +68,9 @@ export const FlowProvider = ({ children }: FlowProviderProps) => {
     const targetNode = nodes.find(n => n.id === params.target);
     
     // Get source type from either outputType or data-type attribute
-    const sourceType = sourceNode?.type === 'combiner' ? 'json' : (sourceNode?.data?.outputType || 'json');
+    const sourceType = sourceNode?.type === 'combiner' ? 'json' : 
+                      (sourceNode?.data?.outputType || 
+                       (sourceNode?.type === 'jsonInput' && sourceNode?.data?.isStringMode ? 'string' : 'json'));
     
     // Find the target input type from the inputs array for API nodes
     let targetType = 'json';
@@ -77,13 +79,18 @@ export const FlowProvider = ({ children }: FlowProviderProps) => {
       targetType = targetInput?.type || 'json';
     } else if (targetNode?.type === 'combiner') {
       targetType = 'json';
+    } else if (params.targetHandle === 'in:string') {
+      targetType = 'string';
     }
+    
+    console.log('Connection types:', { sourceType, targetType }); // Debug log
     
     if (sourceType === targetType) {
       setEdges((eds) => addEdge(params, eds));
       
-      // Update target node's input values if source is a combiner
-      if (sourceNode?.type === 'combiner' && sourceNode.data.combined) {
+      // Update target node's input values
+      const sourceOutput = sourceNode?.data?.output;
+      if (sourceOutput !== undefined) {
         setNodes(nds => 
           nds.map(n => 
             n.id === targetNode?.id 
@@ -93,7 +100,7 @@ export const FlowProvider = ({ children }: FlowProviderProps) => {
                     ...n.data,
                     inputValues: {
                       ...n.data.inputValues,
-                      [params.targetHandle || '']: sourceNode.data.combined
+                      [params.targetHandle || '']: sourceOutput
                     }
                   }
                 }
@@ -101,6 +108,8 @@ export const FlowProvider = ({ children }: FlowProviderProps) => {
           )
         );
       }
+    } else {
+      console.warn('Connection types do not match:', { sourceType, targetType });
     }
   };
 
