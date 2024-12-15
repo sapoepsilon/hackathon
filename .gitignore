@@ -40,4 +40,11 @@ yarn-error.log*
 next-env.d.ts
 .aider*
 .env
+
+# temporary files
+.tmp/
+tmp/
+*.tmp
+
+# typescript
 tmp/
