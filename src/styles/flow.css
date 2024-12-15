@@ -1,0 +1,50 @@
+.react-flow {
+  /* Light mode variables */
+  --xy-edge-stroke-default: #b1b1b7;
+  --xy-node-background-color-default: #ffffff;
+  --xy-node-border-default: 1px solid #e2e8f0;
+  --xy-node-color-default: #1a192b;
+  --xy-handle-background-color-default: #1a192b;
+  --xy-handle-border-color-default: #fff;
+  --xy-controls-button-background-color-default: #fefefe;
+  --xy-controls-button-color-default: #1a192b;
+  --xy-controls-button-border-color-default: #e2e8f0;
+  --xy-background-pattern-dots-color-default: #91919a;
+}
+
+.dark .react-flow {
+  --xy-edge-stroke-default: #4a5568;
+  --xy-node-background-color-default: #2d3748;
+  --xy-node-border-default: 1px solid #4a5568;
+  --xy-node-color-default: #fff;
+  --xy-handle-background-color-default: #718096;
+  --xy-handle-border-color-default: #2d3748;
+  --xy-controls-button-background-color-default: #2d3748;
+  --xy-controls-button-color-default: #fff;
+  --xy-controls-button-border-color-default: #4a5568;
+  --xy-background-pattern-dots-color-default: #4a5568;
+}
+
+.react-flow__node {
+  border-radius: 0.375rem;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+.react-flow__node.selected {
+  box-shadow: 0 0 0 2px #3182ce;
+}
+
+.react-flow__handle {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.react-flow__controls {
+  border-radius: 0.375rem;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+.react-flow__controls-button {
+  border-bottom: var(--xy-controls-button-border-color-default);
+}
