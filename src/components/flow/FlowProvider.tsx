@@ -23,6 +23,9 @@ interface FlowContextType {
   createGroupFromSelection: (label: string) => void;
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
+  saveFlow: (name: string) => Promise<void>;
+  loadFlow: (flowId: string) => Promise<void>;
+  savedFlows: { id: string; name: string; timestamp: string }[];
 }
 
 const FlowContext = createContext<FlowContextType | undefined>(undefined);
@@ -45,6 +48,7 @@ export const FlowProvider = ({ children }: FlowProviderProps) => {
   const [containers, setContainers] = useState<Deployment[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionOrder, setExecutionOrder] = useState<string[]>([]);
+  const [savedFlows, setSavedFlows] = useState<{ id: string; name: string; timestamp: string }[]>([]);
 
   useEffect(() => {
     const fetchContainers = async () => {
@@ -53,7 +57,23 @@ export const FlowProvider = ({ children }: FlowProviderProps) => {
         setContainers(deployments);
       }
     };
+    
+    const fetchSavedFlows = async () => {
+      const { data: flows } = await supabase
+        .from("saved_flows")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (flows) {
+        setSavedFlows(flows.map(flow => ({
+          id: flow.id,
+          name: flow.name,
+          timestamp: flow.created_at
+        })));
+      }
+    };
+    
     fetchContainers();
+    fetchSavedFlows();
   }, []);
 
   const onNodesChange = (changes: any) => {
@@ -394,6 +414,55 @@ export const FlowProvider = ({ children }: FlowProviderProps) => {
     ]);
   };
 
+  const saveFlow = async (name: string) => {
+    try {
+      const flowData = {
+        name,
+        nodes: nodes,
+        edges: edges,
+        created_at: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase
+        .from("saved_flows")
+        .insert([flowData])
+        .select();
+
+      if (error) throw error;
+
+      if (data) {
+        setSavedFlows(prev => [{
+          id: data[0].id,
+          name: data[0].name,
+          timestamp: data[0].created_at
+        }, ...prev]);
+      }
+    } catch (error) {
+      console.error("Error saving flow:", error);
+      throw error;
+    }
+  };
+
+  const loadFlow = async (flowId: string) => {
+    try {
+      const { data: flow, error } = await supabase
+        .from("saved_flows")
+        .select("*")
+        .eq("id", flowId)
+        .single();
+
+      if (error) throw error;
+
+      if (flow) {
+        setNodes(flow.nodes);
+        setEdges(flow.edges);
+      }
+    } catch (error) {
+      console.error("Error loading flow:", error);
+      throw error;
+    }
+  };
+
   const value = {
     nodes,
     edges,
@@ -412,6 +481,9 @@ export const FlowProvider = ({ children }: FlowProviderProps) => {
     createGroupFromSelection,
     setNodes,
     setEdges,
+    saveFlow,
+    loadFlow,
+    savedFlows
   };
 
   return (

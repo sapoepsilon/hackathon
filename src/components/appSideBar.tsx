@@ -28,6 +28,7 @@ import {
   ResizableHandle,
 } from "@/components/ui/resizable";
 import { AIAssistant } from "@/components/AIAssistant";
+import { Switch } from "./ui/switch";
 
 interface AppSidebarProps {
   code: string;
@@ -51,11 +52,6 @@ const AppSidebar = ({
 
   const handleAIAssistantToggle = () => {
     setIsAIAssistantEnabled(!isAIAssistantEnabled);
-    // Here you would integrate with ChatGPT API
-    if (!isAIAssistantEnabled) {
-      // Initialize AI assistant
-      // You would need to implement the actual ChatGPT integration
-    }
   };
 
   return (
@@ -103,21 +99,24 @@ const AppSidebar = ({
               <SidebarGroupContent>
                 <SidebarMenu>
                   <SidebarMenuItem>
+                    <div className="flex items-center justify-between px-2 py-1">
+                      <div className="flex items-center gap-2">
+                        <Bot className="h-4 w-4" />
+                        <span>AI Assistant</span>
+                      </div>
+                      <Switch
+                        checked={isAIAssistantEnabled}
+                        onCheckedChange={handleAIAssistantToggle}
+                      />
+                    </div>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
                     <SheetTrigger asChild>
                       <SidebarMenuButton>
                         <IconDocker className="h-4 w-4" />
                         <span>Containers</span>
                       </SidebarMenuButton>
                     </SheetTrigger>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      onClick={handleAIAssistantToggle}
-                      isActive={isAIAssistantEnabled}
-                    >
-                      <Bot className="h-4 w-4" />
-                      <span>AI Assistant</span>
-                    </SidebarMenuButton>
                   </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>
@@ -150,36 +149,29 @@ const AppSidebar = ({
         </Sidebar>
 
         <main className="flex-1 overflow-hidden">
-          <div className="h-full w-full">
-            {activeView === "code" ? (
-              <div className="h-full w-full">
-                <div className="relative h-full w-full rounded-xl border-none shadow-none bg-card text-card-foreground">
-                  {isAIAssistantEnabled ? (
-                    <ResizablePanelGroup
-                      direction="horizontal"
-                      className="h-full"
-                    >
-                      <ResizablePanel defaultSize={50}>
-                        <CodeEditor code={code} onChange={onCodeChange} />
-                      </ResizablePanel>
-                      <ResizableHandle withHandle />
-                      <ResizablePanel defaultSize={50}>
-                        <AIAssistant code={code} onUpdateCode={onCodeChange} />
-                      </ResizablePanel>
-                    </ResizablePanelGroup>
-                  ) : (
-                    <CodeEditor code={code} onChange={onCodeChange} />
-                  )}
-                </div>
+          <ResizablePanelGroup direction="horizontal" className="flex-1">
+            <ResizablePanel defaultSize={75}>
+              <div className="h-full">
+                {activeView === "code" ? (
+                  <CodeEditor code={code} onChange={onCodeChange} />
+                ) : (
+                  <FlowCanvas />
+                )}
               </div>
-            ) : (
-              <div className="h-full w-full">
-                <div className="relative h-full w-full rounded-xl border bg-card text-card-foreground">
-                  <FlowCanvas height="100%" width="100%" />
-                </div>
-              </div>
+            </ResizablePanel>
+            {isAIAssistantEnabled && (
+              <>
+                <ResizableHandle />
+                <ResizablePanel defaultSize={25}>
+                  <AIAssistant
+                    code={code}
+                    onUpdateCode={onCodeChange}
+                    isEnabled={isAIAssistantEnabled}
+                  />
+                </ResizablePanel>
+              </>
             )}
-          </div>
+          </ResizablePanelGroup>
         </main>
       </div>
     </SidebarProvider>

@@ -5,7 +5,12 @@ import { useEffect, useState, useMemo } from "react";
 import { useTheme } from "next-themes";
 import { Node as NodeType } from "@xyflow/react";
 import { FlowProvider, useFlowContext } from "./flow/FlowProvider";
-import { ApiNode, CombinerNode, JSONInputNode, GroupNode } from "./flow/NodeTypes";
+import {
+  ApiNode,
+  CombinerNode,
+  JSONInputNode,
+  GroupNode,
+} from "./flow/NodeTypes";
 import { AddNodeDialog, ApiDialog, JsonDialog } from "./flow/DialogComponents";
 import { FlowControls } from "./flow/FlowControls";
 
@@ -42,10 +47,16 @@ function FlowCanvasContent({
     updateCombinerNodes,
     setNodes,
     setEdges,
+    saveFlow,
+    loadFlow,
+    savedFlows,
   } = useFlowContext();
 
   const { theme, systemTheme } = useTheme();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
+  const [flowName, setFlowName] = useState("");
   const [selectedNode, setSelectedNode] = useState<NodeType | null>(null);
   const [selectedResponseNode, setSelectedResponseNode] =
     useState<NodeType | null>(null);
@@ -180,6 +191,8 @@ function FlowCanvasContent({
         onAddJson={addJsonNode}
         onExecuteFlow={executeFlow}
         isExecuting={isExecuting}
+        onSaveFlow={() => setIsSaveDialogOpen(true)}
+        onLoadFlow={() => setIsLoadDialogOpen(true)}
       />
 
       <ReactFlow
@@ -202,6 +215,86 @@ function FlowCanvasContent({
         containers={containers}
         onContainerSelect={addNode}
       />
+
+      {/* Save Flow Dialog */}
+      <dialog
+        open={isSaveDialogOpen}
+        className="fixed inset-0 z-10 overflow-y-auto"
+        onClose={() => setIsSaveDialogOpen(false)}
+      >
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl">
+            <h3 className="text-lg font-medium mb-4">Save Flow</h3>
+            <input
+              type="text"
+              value={flowName}
+              onChange={(e) => setFlowName(e.target.value)}
+              placeholder="Enter flow name"
+              className="w-full p-2 border rounded mb-4 dark:bg-gray-700"
+            />
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setIsSaveDialogOpen(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (flowName) {
+                    await saveFlow(flowName);
+                    setFlowName("");
+                    setIsSaveDialogOpen(false);
+                  }
+                }}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                disabled={!flowName}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      </dialog>
+
+      {/* Load Flow Dialog */}
+      <dialog
+        open={isLoadDialogOpen}
+        className="fixed inset-0 z-10 overflow-y-auto"
+        onClose={() => setIsLoadDialogOpen(false)}
+      >
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl">
+            <h3 className="text-lg font-medium mb-4">Load Flow</h3>
+            <div className="max-h-96 overflow-y-auto">
+              {savedFlows.map((flow) => (
+                <div
+                  key={flow.id}
+                  className="p-3 border-b hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                  onClick={async () => {
+                    await loadFlow(flow.id);
+                    setIsLoadDialogOpen(false);
+                  }}
+                >
+                  <div className="font-medium">{flow.name}</div>
+                  <div className="text-sm text-gray-500">
+                    {new Date(flow.timestamp).toLocaleString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end mt-4">
+              <button
+                onClick={() => setIsLoadDialogOpen(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-400"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </dialog>
+
       <JsonDialog
         isOpen={isJsonDialogOpen}
         onOpenChange={setIsJsonDialogOpen}
